@@ -1,0 +1,82 @@
+= Introduction
+:toc:
+
+include::includes/project-info.adoc[tags=project-status]
+
+Inspired by docker-compose and distinct as linux-containers are for applications and incus-containers are for machines.
+
+== Overview
+
+`incus-composer` is a tool for managing https://linuxcontainers.org/incus/[Incus] system containers and virtual machines using a declarative YAML configuration file, similar to how docker-compose manages application containers.
+
+While docker-compose is focused on application deployment, incus-composer is designed for system-level infrastructure management, including:
+
+* Full system containers
+* Virtual machines
+* Network infrastructure
+* Storage pools
+* Hardware device passthrough
+* Cloud-init integration
+
+== Schema
+
+The `incus-compose.yaml` schema is inspired by docker-compose but adapted for system containers and VMs.
+See <<schema.adoc#,Schema Documentation>> for complete documentation.
+
+=== Example Configuration
+
+include::includes/schema-examples.adoc[tags=container-with-networking]
+
+See `examples/incus-compose.yaml` for a comprehensive example.
+
+== Development
+
+This project uses https://pixi.sh/[pixi] for dependency management instead of rustup.
+
+include::includes/project-info.adoc[tags=prerequisites-info]
+
+include::includes/project-info.adoc[tags=pixi-installation]
+
+include::includes/project-info.adoc[tags=quick-start-commands]
+
+=== Building Documentation
+
+The project documentation is built using pixi tasks:
+
+[source,bash]
+----
+# Build all documentation formats
+pixi run docs
+
+# Clean and build documentation
+pixi run docs-clean
+
+# Build only HTML documentation
+pixi run docs-html
+----
+
+=== Project Structure
+
+----
+incus-composer/
+├── src/
+│   ├── main.rs          # Application entry point
+│   └── schema.rs        # Schema definitions
+├── examples/
+│   └── incus-compose.yaml  # Example configuration
+├── Cargo.toml           # Rust dependencies
+├── pixi.toml            # Pixi configuration
+├── SCHEMA.md            # Schema documentation
+└── README.md            # This file
+----
+
+include::includes/project-info.adoc[tags=dependencies-info]
+
+== Incus API
+
+This tool communicates with Incus via its REST API.
+See the https://linuxcontainers.org/incus/docs/main/rest-api/[Incus REST API documentation] for details.
+
+include::includes/project-info.adoc[tags=license-info]
+
+include::includes/project-info.adoc[tags=contributing-info]

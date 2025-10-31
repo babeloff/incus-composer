@@ -1,0 +1,44 @@
+= Incus Composer Documentation
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+:source-highlighter: rouge
+:icons: font
+
+[preface]
+== Preface
+
+This documentation covers Incus Composer, a tool for managing Incus system containers and virtual machines using a declarative YAML configuration file.
+
+Inspired by docker-compose but designed specifically for system-level infrastructure management.
+
+== Table of Contents
+
+include::introduction.adoc[]
+
+include::schema.adoc[]
+
+include::development.adoc[]
+
+include::project-status.adoc[]
+
+[appendix]
+== Appendices
+
+=== Resources
+
+* https://linuxcontainers.org/incus/[Incus Project]
+* https://pixi.sh/[Pixi Package Manager]
+* https://doc.rust-lang.org/[Rust Documentation]
+* https://asciidoctor.org/docs/user-manual/[AsciiDoc User Manual]
+
+=== License
+
+This project is licensed under MIT OR Apache-2.0.
+
+=== Contributing
+
+Contributions are welcome!
+Please see the development guide for information on how to contribute to this project.

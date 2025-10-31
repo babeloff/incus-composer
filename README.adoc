@@ -1,0 +1,163 @@
+= Incus Composer
+:toc:
+
+Inspired by docker-compose and distinct as linux-containers are for applications and incus-containers are for machines.
+
+== Overview
+
+`incus-composer` is a tool for managing https://linuxcontainers.org/incus/[Incus] system containers and virtual machines using a declarative YAML configuration file, similar to how docker-compose manages application containers.
+
+While docker-compose is focused on application deployment, incus-composer is designed for system-level infrastructure management, including:
+
+* Full system containers
+* Virtual machines
+* Network infrastructure
+* Storage pools
+* Hardware device passthrough
+* Cloud-init integration
+
+== Quick Start
+
+This project uses https://pixi.sh/[pixi] for dependency management.
+
+=== Prerequisites
+
+* https://pixi.sh/[pixi] - Package management tool
+
+=== Installation
+
+[source,bash]
+----
+# Clone the repository
+git clone <repository-url>
+cd incus-composer
+
+# Install dependencies (pixi will handle everything)
+pixi install
+----
+
+=== Building
+
+[source,bash]
+----
+# Build the project
+pixi run build
+
+# Run tests
+pixi run test
+
+# Run the application
+pixi run run
+
+# Format code
+pixi run fmt
+
+# Run linter
+pixi run clippy
+----
+
+=== Documentation
+
+Build the complete project documentation:
+
+[source,bash]
+----
+# Build all documentation formats (HTML, PDF, DocBook)
+pixi run docs
+
+# Clean and rebuild documentation
+pixi run docs-clean
+
+# Build only HTML documentation
+pixi run docs-html
+
+# Build only PDF documentation
+pixi run docs-pdf
+
+# Build all formats except PDF
+pixi run docs-no-pdf
+----
+
+The documentation will be generated in `./book/output/`.
+Open `./book/output/index.html` in your browser to view the complete documentation.
+
+== Project Status
+
+This project is currently in *Phase 1: Schema Design* which is ✅ *COMPLETED*.
+
+Current implementation status:
+
+* [x] Pixi-based Rust project structure
+* [x] Comprehensive `incus-compose.yaml` schema design
+* [x] Rust schema definitions with serde support
+* [x] Complete AsciiDoc documentation
+* [ ] Incus REST API client implementation
+* [ ] CLI interface
+* [ ] Container/VM lifecycle management
+* [ ] Network management operations
+* [ ] Storage pool management operations
+
+== Schema Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  web:
+    instance_type: container
+    image: "ubuntu/22.04"
+    memory:
+      limit: "2GB"
+    cpu:
+      limit: "2"
+    networks:
+      - frontend
+    autostart: true
+
+networks:
+  frontend:
+    type: bridge
+    config:
+      ipv4.address: "10.0.1.1/24"
+      ipv4.nat: "true"
+----
+
+See the complete documentation for comprehensive schema details and examples.
+
+== Documentation Structure
+
+Complete documentation is available in the `./book/` directory:
+
+* **Introduction** - Project overview and quick start
+* **Schema Documentation** - Complete YAML schema reference
+* **Development Guide** - Setup and contribution guidelines
+* **Project Status** - Current phase and roadmap
+
+Build with `pixi run docs` to generate HTML, PDF, and other formats.
+
+== Dependencies
+
+* *reqwest* (v0.12) - HTTP client for Incus REST API communication
+* *serde* (v1.0) - Serialization/deserialization framework
+* *serde_yaml* (v0.9) - YAML support for configuration files
+* *tokio* (v1) - Async runtime for handling concurrent operations
+
+All dependencies are managed automatically by pixi.
+
+== License
+
+MIT OR Apache-2.0
+
+== Contributing
+
+Contributions are welcome!
+This project is in early development and there are many opportunities to contribute.
+
+See the development guide in the documentation for detailed contribution guidelines:
+
+[source,bash]
+----
+pixi run docs
+# Then open book/output/index.html
+----

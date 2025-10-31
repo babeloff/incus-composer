@@ -1,0 +1,139 @@
+// Common project information for inclusion in multiple documents
+// This file contains reusable content chunks for the Incus Composer project
+
+:project-name: Incus Composer
+:project-version: 1.0
+:project-description: A tool for managing Incus system containers and virtual machines using declarative YAML configuration
+:project-license: MIT OR Apache-2.0
+:project-url: https://github.com/incus-composer/incus-composer
+:incus-url: https://linuxcontainers.org/incus/
+:pixi-url: https://pixi.sh/
+:rust-url: https://www.rust-lang.org/
+
+// License information
+// tag::license-info[]
+[#license-info]
+== License Information
+
+This project is licensed under {project-license}.
+// end::license-info[]
+
+// Contributing section
+// tag::contributing-info[]
+[#contributing-info]
+== Contributing
+
+Contributions are welcome!
+This project is in early development and there are many opportunities to contribute.
+
+Please follow these guidelines when contributing:
+
+* Run code formatting before submitting changes
+* Write tests for new functionality
+* Update documentation for user-facing changes
+* Follow the existing code style and patterns
+// end::contributing-info[]
+
+// Project status badges and information
+// tag::project-status[]
+[#project-status]
+== Project Status
+
+This project is currently in *Phase 1: Schema Design* which is ✅ *COMPLETED*.
+
+Current implementation status:
+
+* [x] Pixi-based Rust project structure
+* [x] Comprehensive `incus-compose.yaml` schema design
+* [x] Rust schema definitions with serde support
+* [ ] Incus REST API client implementation
+* [ ] CLI interface
+* [ ] Container/VM lifecycle management
+* [ ] Network management operations
+* [ ] Storage pool management operations
+// end::project-status[]
+
+// Dependencies information
+// tag::dependencies-info[]
+[#dependencies-info]
+== Core Dependencies
+
+The project uses the following core dependencies:
+
+* *reqwest* (v0.12) - HTTP client for Incus REST API communication
+* *serde* (v1.0) - Serialization/deserialization framework
+* *serde_yaml* (v0.9) - YAML support for configuration files
+* *tokio* (v1) - Async runtime for handling concurrent operations
+// end::dependencies-info[]
+
+// Prerequisites section
+// tag::prerequisites-info[]
+[#prerequisites-info]
+== Prerequisites
+
+To work with this project, you need:
+
+* {pixi-url}[Pixi] - Package management tool (replaces rustup)
+* Basic understanding of containerization concepts
+* Familiarity with YAML configuration files
+* Access to an Incus installation for testing
+// end::prerequisites-info[]
+
+// Installation of Pixi
+// tag::pixi-installation[]
+[#pixi-installation]
+=== Installing Pixi
+
+==== Linux & macOS
+[source,bash]
+----
+curl -fsSL https://pixi.sh/install.sh | bash
+----
+
+==== Windows
+[source,powershell]
+----
+iwr -useb https://pixi.sh/install.ps1 | iex
+----
+
+==== Via Conda
+[source,bash]
+----
+conda install -c conda-forge pixi
+----
+// end::pixi-installation[]
+
+// Quick start commands
+// tag::quick-start-commands[]
+[#quick-start-commands]
+== Quick Start Commands
+
+[source,bash]
+----
+# Build the project
+pixi run build
+
+# Run tests
+pixi run test
+
+# Run the application
+pixi run run
+
+# Format code
+pixi run fmt
+
+# Run linter
+pixi run clippy
+----
+// end::quick-start-commands[]
+
+// External resources
+// tag::external-resources[]
+[#external-resources]
+== External Resources
+
+* {incus-url}[Incus Documentation]
+* {pixi-url}[Pixi Documentation]
+* {rust-url}[Rust Documentation]
+* https://asciidoctor.org/[AsciiDoctor Documentation]
+// end::external-resources[]

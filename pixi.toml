@@ -12,6 +12,12 @@ run = "cargo run"
 check = "cargo check"
 fmt = "cargo fmt"
 clippy = "cargo clippy -- -D warnings"
+docs = "nu book/build.nu"
+docs-clean = "nu book/build.nu --clean"
+docs-html = "nu book/build.nu --html-only"
+docs-pdf = "nu book/build.nu --pdf-only"
+docs-no-pdf = "nu book/build.nu --no-pdf"
 
 [dependencies]
 rust = ">=1.90.0,<1.91"
+nushell = ">=0.89.0"

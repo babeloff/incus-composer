@@ -1,0 +1,28 @@
+# AsciiDoc build outputs
+output/
+*.html
+*.pdf
+*.xml
+
+# Temporary files
+.asciidoctor/
+*~
+*.tmp
+*.bak
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Log files
+*.log

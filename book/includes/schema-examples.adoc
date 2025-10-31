@@ -1,0 +1,429 @@
+// Common schema examples for inclusion in multiple documents
+// This file contains reusable YAML examples for the Incus Composer schema
+
+// Basic container example
+// tag::basic-container-example[]
+[#basic-container-example]
+=== Basic Container Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  web:
+    image: "ubuntu/22.04"
+    memory:
+      limit: "2GB"
+    cpu:
+      limit: "2"
+    autostart: true
+----
+// end::basic-container-example[]
+
+// Container with networking example
+// tag::container-with-networking[]
+[#container-with-networking]
+=== Container with Networking
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  web:
+    image: "ubuntu/22.04"
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:
+    type: bridge
+    config:
+      ipv4.address: "10.0.1.1/24"
+      ipv4.nat: "true"
+
+  backend:
+    type: bridge
+    config:
+      ipv4.address: "10.0.2.1/24"
+      ipv4.nat: "false"
+----
+// end::container-with-networking[]
+
+// Virtual machine example
+// tag::virtual-machine-example[]
+[#virtual-machine-example]
+=== Virtual Machine Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  vm1:
+    instance_type: virtual-machine
+    image: "ubuntu/22.04"
+    memory:
+      limit: "4GB"
+    cpu:
+      limit: "4"
+    devices:
+      gpu0:
+        type: gpu
+        id: "0"
+----
+// end::virtual-machine-example[]
+
+// Storage and volumes example
+// tag::storage-volumes-example[]
+[#storage-volumes-example]
+=== Storage and Volumes Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  database:
+    image: "ubuntu/22.04"
+    volumes:
+      - source: "db-data"
+        target: "/var/lib/postgresql/data"
+        pool: "fast"
+      - source: "db-logs"
+        target: "/var/log/postgresql"
+        readonly: false
+
+storage:
+  default:
+    driver: dir
+    config:
+      source: "/var/lib/incus/storage-pools/default"
+
+  fast:
+    driver: zfs
+    description: "ZFS pool for databases"
+    config:
+      source: "tank/incus"
+      volume.size: "50GB"
+----
+// end::storage-volumes-example[]
+
+// Cloud-init example
+// tag::cloud-init-example[]
+[#cloud-init-example]
+=== Cloud-init Configuration Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  web:
+    image: "ubuntu/22.04"
+    cloud_init:
+      user_data: |
+        #cloud-config
+        packages:
+          - nginx
+          - certbot
+        users:
+          - name: admin
+            groups: [sudo]
+            shell: /bin/bash
+            sudo: ALL=(ALL) NOPASSWD:ALL
+            ssh_authorized_keys:
+              - ssh-rsa AAAAB3NzaC1yc2E...
+        runcmd:
+          - systemctl enable nginx
+          - systemctl start nginx
+          - ufw --force enable
+          - ufw allow 'Nginx Full'
+
+      network_config: |
+        version: 2
+        ethernets:
+          eth0:
+            dhcp4: true
+            dhcp6: false
+----
+// end::cloud-init-example[]
+
+// Device passthrough example
+// tag::device-passthrough-example[]
+[#device-passthrough-example]
+=== Device Passthrough Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  media-server:
+    image: "ubuntu/22.04"
+    devices:
+      gpu0:
+        type: gpu
+        id: "0"
+
+      storage-disk:
+        type: disk
+        source: "/dev/sdb"
+        path: "/mnt/storage"
+
+      usb-device:
+        type: usb
+        vendorid: "046d"
+        productid: "c52b"
+
+      proxy-web:
+        type: proxy
+        listen: "tcp:0.0.0.0:8080"
+        connect: "tcp:127.0.0.1:8080"
+----
+// end::device-passthrough-example[]
+
+// Profile example
+// tag::profile-example[]
+[#profile-example]
+=== Profile Configuration Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  web1:
+    image: "ubuntu/22.04"
+    profiles:
+      - default
+      - web-server
+
+  web2:
+    image: "ubuntu/22.04"
+    profiles:
+      - default
+      - web-server
+
+profiles:
+  web-server:
+    description: "Common web server configuration"
+    config:
+      security.nesting: "true"
+      linux.kernel_modules: "ip_tables,ip6_tables,netfilter_conntrack"
+    devices:
+      eth0:
+        type: nic
+        network: "frontend"
+        name: "eth0"
+    environment:
+      DEBIAN_FRONTEND: "noninteractive"
+      TZ: "UTC"
+----
+// end::profile-example[]
+
+// Dependencies example
+// tag::dependencies-example[]
+[#dependencies-example]
+=== Container Dependencies Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  database:
+    image: "ubuntu/22.04"
+    boot_priority: 10
+    autostart: true
+
+  cache:
+    image: "ubuntu/22.04"
+    boot_priority: 9
+    depends_on:
+      - database
+
+  web:
+    image: "ubuntu/22.04"
+    boot_priority: 5
+    depends_on:
+      - database
+      - cache
+
+  loadbalancer:
+    image: "ubuntu/22.04"
+    boot_priority: 1
+    depends_on:
+      - web
+----
+// end::dependencies-example[]
+
+// Complex multi-tier example
+// tag::complex-example[]
+[#complex-example]
+=== Complex Multi-Tier Application Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  postgres:
+    image: "ubuntu/22.04"
+    memory:
+      limit: "4GB"
+    cpu:
+      limit: "2"
+    volumes:
+      - source: "postgres-data"
+        target: "/var/lib/postgresql/data"
+        pool: "fast"
+    networks:
+      - backend
+    boot_priority: 10
+    cloud_init:
+      user_data: |
+        #cloud-config
+        packages:
+          - postgresql-14
+        runcmd:
+          - systemctl enable postgresql
+          - systemctl start postgresql
+
+  redis:
+    image: "ubuntu/22.04"
+    memory:
+      limit: "1GB"
+    cpu:
+      limit: "1"
+    networks:
+      - backend
+    boot_priority: 9
+    depends_on:
+      - postgres
+
+  api:
+    image: "ubuntu/22.04"
+    memory:
+      limit: "2GB"
+    cpu:
+      limit: "2"
+    networks:
+      - frontend
+      - backend
+    boot_priority: 5
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DATABASE_URL: "postgresql://postgres@postgres:5432/app"
+      REDIS_URL: "redis://redis:6379"
+
+  nginx:
+    image: "ubuntu/22.04"
+    memory:
+      limit: "512MB"
+    cpu:
+      limit: "1"
+    networks:
+      - frontend
+    devices:
+      proxy-http:
+        type: proxy
+        listen: "tcp:0.0.0.0:80"
+        connect: "tcp:127.0.0.1:80"
+      proxy-https:
+        type: proxy
+        listen: "tcp:0.0.0.0:443"
+        connect: "tcp:127.0.0.1:443"
+    boot_priority: 1
+    depends_on:
+      - api
+
+networks:
+  frontend:
+    type: bridge
+    description: "Public-facing network"
+    config:
+      ipv4.address: "10.0.1.1/24"
+      ipv4.nat: "true"
+      ipv6.address: "none"
+
+  backend:
+    type: bridge
+    description: "Private backend network"
+    config:
+      ipv4.address: "10.0.2.1/24"
+      ipv4.nat: "false"
+      ipv6.address: "none"
+
+storage:
+  default:
+    driver: dir
+    config:
+      source: "/var/lib/incus/storage-pools/default"
+
+  fast:
+    driver: zfs
+    description: "Fast ZFS storage for databases"
+    config:
+      source: "tank/incus"
+      volume.size: "100GB"
+
+profiles:
+  default:
+    description: "Default LXD profile"
+    devices:
+      eth0:
+        type: nic
+        network: "lxdbr0"
+        name: "eth0"
+      root:
+        path: "/"
+        pool: "default"
+        type: disk
+----
+// end::complex-example[]
+
+// Minimal example
+// tag::minimal-example[]
+[#minimal-example]
+=== Minimal Configuration Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  simple:
+    image: "ubuntu/22.04"
+----
+// end::minimal-example[]
+
+// Resource limits example
+// tag::resource-limits-example[]
+[#resource-limits-example]
+=== Resource Limits Example
+
+[source,yaml]
+----
+version: "1.0"
+
+containers:
+  resource-limited:
+    image: "ubuntu/22.04"
+    cpu:
+      limit: "2"
+      allowance: "50%"
+      priority: 5
+    memory:
+      limit: "4GB"
+      swap: "2GB"
+      swap_priority: 1
+    config:
+      limits.cpu.nodes: "0,1"
+      limits.memory.enforce: "hard"
+----
+// end::resource-limits-example[]
