@@ -1,0 +1,277 @@
+hosts:
+  oob:
+    flavor: xlarge_flavor
+    floating_ip: true
+    image: base_image
+    master: true
+    roles: {}
+#      workflow:
+#        - - broker: "external_neuralert_server01"
+#            publisher_list:
+#              - "patient_bed01"
+#              - "patient_bed02"
+#      ssh: ["enterprise1"]
+#      velociraptor: []
+#    subnet: enterprise
+  internet_firewall:
+    flavor: small_flavor
+    image: base_image
+    is_router: true
+    roles:
+      router: []
+    subnet_list:
+      - hospital
+      - internet
+  external_neuralert_server01:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      broker: []
+#      velociraptor: []
+    subnet: internet
+  external_vasowatch_server01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+#      velociraptor: []
+    subnet: internet
+  external_sible_health_server01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+#      ssh: ["op_server0"]
+#      velociraptor: []
+    subnet: internet
+  external_physician_terminal01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+#      velociraptor: []
+    subnet: internet
+  cardiac_router:
+    flavor: small_flavor
+    image: base_image
+    is_router: true
+    roles:
+      router: []
+    subnet_list:
+      - cardiac
+      - hospital
+  patient01_monitor01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+#      velociraptor: []
+    subnet: cardiac
+  patient01_monitor02:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+#      velociraptor: []
+    subnet: cardiac
+  patient02_monitor01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  patient02_monitor02:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  patient03_monitor01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  patient03_monitor02:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  patient04_monitor01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  patient04_monitor02:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  patient05_monitor01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  patient05_monitor02:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: cardiac
+  physician_router:
+    flavor: small_flavor
+    image: base_image
+    is_router: true
+    roles:
+      router: []
+    subnet_list:
+      - hospital
+      - physician
+  nurse01_workstation01:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      subscriber: [ "external_neuralert_server01" ]
+    #      velociraptor: []
+    subnet: physician
+  nurse01_workstation02:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: physician
+  nurse01_workstation03:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: physician
+  nurse01_tv01:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      tv: ["external_neuralert_server01"]
+    #      velociraptor: []
+    subnet: physician
+  physician01_terminal01:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      pixi_base: []
+    #      velociraptor: []
+    subnet: physician
+  physician01_terminal02:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      pixi_base: []
+    #      velociraptor: []
+    subnet: physician
+  server_router:
+    flavor: small_flavor
+    image: base_image
+    is_router: true
+    roles:
+      router: []
+    subnet_list:
+      - hospital
+      - server
+  internal_neuralert_server01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: server
+  internal_vasowatch_server01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: server
+  sibel_health_server01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: server
+  monitor_router:
+    flavor: small_flavor
+    image: base_image
+    is_router: true
+    roles:
+      router: []
+    subnet_list:
+      - hospital
+      - monitor
+  emr_server01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: monitor
+  patient_monitor_server01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: monitor
+  clinic_router:
+    flavor: small_flavor
+    image: base_image
+    is_router: true
+    roles:
+      router: []
+    subnet_list:
+      - hospital
+      - clinic
+  ecg_pulse_oximeter01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: clinic
+  clinic_ipad01:
+    flavor: small_flavor
+    image: base_image
+    roles: {}
+    #      velociraptor: []
+    subnet: clinic
+  patient_bed01:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      neuralert_device: [ "external_neuralert_server01" ]
+      patient_monitor: []
+    #      velociraptor: []
+    subnet: clinic
+  patient_bed02:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      neuralert_device: [ "external_neuralert_server01" ]
+      patient_monitor: []
+    #      velociraptor: []
+    subnet: clinic
+  patient_bed03:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      neuralert_device: [ "external_neuralert_server01" ]
+      patient_monitor: []
+    #      velociraptor: []
+    subnet: clinic
+  patient_bed04:
+    flavor: small_flavor
+    image: base_image
+    roles:
+      neuralert_device: [ "external_neuralert_server01" ]
+      patient_monitor: []
+    #      velociraptor: []
+    subnet: clinic
+subnets:
+  cardiac: {}
+  clinic: {}
+  hospital: {}
+  internet: {}
+  monitor: {}
+  physician: {}
+  server: {}
