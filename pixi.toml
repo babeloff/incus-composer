@@ -1,0 +1,17 @@
+[workspace]
+authors = ["copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>"]
+channels = ["conda-forge"]
+name = "incus-composer"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+build = "cargo build"
+test = "cargo test"
+run = "cargo run"
+check = "cargo check"
+fmt = "cargo fmt"
+clippy = "cargo clippy -- -D warnings"
+
+[dependencies]
+rust = ">=1.90.0,<1.91"
