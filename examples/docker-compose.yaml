@@ -1,0 +1,798 @@
+networks:
+  cardiac:
+    ipam:
+      config:
+      - subnet: 10.4.10.0/24
+  clinic:
+    ipam:
+      config:
+      - subnet: 10.4.20.0/24
+  control:
+    ipam:
+      config:
+      - subnet: 10.4.0.0/24
+  dockervnc:
+    ipam:
+      config:
+      - subnet: 10.4.254.0/24
+  hospital:
+    ipam:
+      config:
+      - subnet: 10.4.30.0/24
+  internet:
+    ipam:
+      config:
+      - subnet: 10.4.40.0/24
+  monitor:
+    ipam:
+      config:
+      - subnet: 10.4.50.0/24
+  physician:
+    ipam:
+      config:
+      - subnet: 10.4.60.0/24
+  server:
+    ipam:
+      config:
+      - subnet: 10.4.70.0/24
+services:
+  cardiac_router:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.40.0/24 via 10.4.30.2 && ip route add
+      10.4.60.0/24 via 10.4.30.4 && ip route add 10.4.70.0/24 via 10.4.30.5 && ip
+      route add 10.4.50.0/24 via 10.4.30.6 && ip route add 10.4.20.0/24 via 10.4.30.7
+      && exec /lib/systemd/systemd"
+    hostname: cardiac-router
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.2
+      control:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv4.conf.IFNAME.forwarding=0
+        ipv4_address: 10.4.0.10
+      hospital:
+        ipv4_address: 10.4.30.3
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 1
+      net.ipv4.conf.all.rp_filter: 1
+      net.ipv4.conf.default.rp_filter: 1
+      net.ipv4.ip_forward: 1
+    tmpfs: &id001
+    - /run
+    - /run/lock
+    - /tmp
+    volumes: &id002
+    - /sys/fs/cgroup:/sys/fs/cgroup
+    - /lib/modules:/lib/modules
+  clinic_ipad01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.20.2 && ip route add
+      10.4.30.0/24 via 10.4.20.2 && ip route add 10.4.40.0/24 via 10.4.20.2 && ip
+      route add 10.4.50.0/24 via 10.4.20.2 && ip route add 10.4.60.0/24 via 10.4.20.2
+      && ip route add 10.4.70.0/24 via 10.4.20.2 && exec /lib/systemd/systemd"
+    hostname: clinic-ipad01
+    image: base:latest
+    networks:
+      clinic:
+        ipv4_address: 10.4.20.11
+      control:
+        ipv4_address: 10.4.0.11
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  clinic_router:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.40.0/24 via 10.4.30.2 && ip route add
+      10.4.10.0/24 via 10.4.30.3 && ip route add 10.4.60.0/24 via 10.4.30.4 && ip
+      route add 10.4.70.0/24 via 10.4.30.5 && ip route add 10.4.50.0/24 via 10.4.30.6
+      && exec /lib/systemd/systemd"
+    hostname: clinic-router
+    image: base:latest
+    networks:
+      clinic:
+        ipv4_address: 10.4.20.2
+      control:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv4.conf.IFNAME.forwarding=0
+        ipv4_address: 10.4.0.12
+      hospital:
+        ipv4_address: 10.4.30.7
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 1
+      net.ipv4.conf.all.rp_filter: 1
+      net.ipv4.conf.default.rp_filter: 1
+      net.ipv4.ip_forward: 1
+    tmpfs: *id001
+    volumes: *id002
+  ecg_pulse_oximeter01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.20.2 && ip route add
+      10.4.30.0/24 via 10.4.20.2 && ip route add 10.4.40.0/24 via 10.4.20.2 && ip
+      route add 10.4.50.0/24 via 10.4.20.2 && ip route add 10.4.60.0/24 via 10.4.20.2
+      && ip route add 10.4.70.0/24 via 10.4.20.2 && exec /lib/systemd/systemd"
+    hostname: ecg-pulse-oximeter01
+    image: base:latest
+    networks:
+      clinic:
+        ipv4_address: 10.4.20.10
+      control:
+        ipv4_address: 10.4.0.13
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  emr_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.50.2 && ip route add
+      10.4.20.0/24 via 10.4.50.2 && ip route add 10.4.30.0/24 via 10.4.50.2 && ip
+      route add 10.4.40.0/24 via 10.4.50.2 && ip route add 10.4.60.0/24 via 10.4.50.2
+      && ip route add 10.4.70.0/24 via 10.4.50.2 && exec /lib/systemd/systemd"
+    hostname: emr-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.14
+      monitor:
+        ipv4_address: 10.4.50.10
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  external_neuralert_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.40.2 && ip route add
+      10.4.20.0/24 via 10.4.40.2 && ip route add 10.4.30.0/24 via 10.4.40.2 && ip
+      route add 10.4.50.0/24 via 10.4.40.2 && ip route add 10.4.60.0/24 via 10.4.40.2
+      && ip route add 10.4.70.0/24 via 10.4.40.2 && exec /lib/systemd/systemd"
+    hostname: external-neuralert-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.15
+      internet:
+        ipv4_address: 10.4.40.10
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  external_physician_terminal01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.40.2 && ip route add
+      10.4.20.0/24 via 10.4.40.2 && ip route add 10.4.30.0/24 via 10.4.40.2 && ip
+      route add 10.4.50.0/24 via 10.4.40.2 && ip route add 10.4.60.0/24 via 10.4.40.2
+      && ip route add 10.4.70.0/24 via 10.4.40.2 && exec /lib/systemd/systemd"
+    hostname: external-physician-terminal01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.16
+      internet:
+        ipv4_address: 10.4.40.13
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  external_sible_health_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.40.2 && ip route add
+      10.4.20.0/24 via 10.4.40.2 && ip route add 10.4.30.0/24 via 10.4.40.2 && ip
+      route add 10.4.50.0/24 via 10.4.40.2 && ip route add 10.4.60.0/24 via 10.4.40.2
+      && ip route add 10.4.70.0/24 via 10.4.40.2 && exec /lib/systemd/systemd"
+    hostname: external-sible-health-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.17
+      internet:
+        ipv4_address: 10.4.40.12
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  external_vasowatch_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.40.2 && ip route add
+      10.4.20.0/24 via 10.4.40.2 && ip route add 10.4.30.0/24 via 10.4.40.2 && ip
+      route add 10.4.50.0/24 via 10.4.40.2 && ip route add 10.4.60.0/24 via 10.4.40.2
+      && ip route add 10.4.70.0/24 via 10.4.40.2 && exec /lib/systemd/systemd"
+    hostname: external-vasowatch-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.18
+      internet:
+        ipv4_address: 10.4.40.11
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  internal_neuralert_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.70.2 && ip route add
+      10.4.20.0/24 via 10.4.70.2 && ip route add 10.4.30.0/24 via 10.4.70.2 && ip
+      route add 10.4.40.0/24 via 10.4.70.2 && ip route add 10.4.50.0/24 via 10.4.70.2
+      && ip route add 10.4.60.0/24 via 10.4.70.2 && exec /lib/systemd/systemd"
+    hostname: internal-neuralert-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.19
+      server:
+        ipv4_address: 10.4.70.10
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  internal_vasowatch_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.70.2 && ip route add
+      10.4.20.0/24 via 10.4.70.2 && ip route add 10.4.30.0/24 via 10.4.70.2 && ip
+      route add 10.4.40.0/24 via 10.4.70.2 && ip route add 10.4.50.0/24 via 10.4.70.2
+      && ip route add 10.4.60.0/24 via 10.4.70.2 && exec /lib/systemd/systemd"
+    hostname: internal-vasowatch-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.20
+      server:
+        ipv4_address: 10.4.70.11
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  internet_firewall:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.30.3 && ip route add
+      10.4.60.0/24 via 10.4.30.4 && ip route add 10.4.70.0/24 via 10.4.30.5 && ip
+      route add 10.4.50.0/24 via 10.4.30.6 && ip route add 10.4.20.0/24 via 10.4.30.7
+      && exec /lib/systemd/systemd"
+    hostname: internet-firewall
+    image: base:latest
+    networks:
+      control:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv4.conf.IFNAME.forwarding=0
+        ipv4_address: 10.4.0.21
+      hospital:
+        ipv4_address: 10.4.30.2
+      internet:
+        ipv4_address: 10.4.40.2
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 1
+      net.ipv4.conf.all.rp_filter: 1
+      net.ipv4.conf.default.rp_filter: 1
+      net.ipv4.ip_forward: 1
+    tmpfs: *id001
+    volumes: *id002
+  monitor_router:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.40.0/24 via 10.4.30.2 && ip route add
+      10.4.10.0/24 via 10.4.30.3 && ip route add 10.4.60.0/24 via 10.4.30.4 && ip
+      route add 10.4.70.0/24 via 10.4.30.5 && ip route add 10.4.20.0/24 via 10.4.30.7
+      && exec /lib/systemd/systemd"
+    hostname: monitor-router
+    image: base:latest
+    networks:
+      control:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv4.conf.IFNAME.forwarding=0
+        ipv4_address: 10.4.0.22
+      hospital:
+        ipv4_address: 10.4.30.6
+      monitor:
+        ipv4_address: 10.4.50.2
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 1
+      net.ipv4.conf.all.rp_filter: 1
+      net.ipv4.conf.default.rp_filter: 1
+      net.ipv4.ip_forward: 1
+    tmpfs: *id001
+    volumes: *id002
+  nurse01_tv01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.60.2 && ip route add
+      10.4.20.0/24 via 10.4.60.2 && ip route add 10.4.30.0/24 via 10.4.60.2 && ip
+      route add 10.4.40.0/24 via 10.4.60.2 && ip route add 10.4.50.0/24 via 10.4.60.2
+      && ip route add 10.4.70.0/24 via 10.4.60.2 && exec /lib/systemd/systemd"
+    hostname: nurse01-tv01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.23
+      physician:
+        ipv4_address: 10.4.60.13
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  nurse01_workstation01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.60.2 && ip route add
+      10.4.20.0/24 via 10.4.60.2 && ip route add 10.4.30.0/24 via 10.4.60.2 && ip
+      route add 10.4.40.0/24 via 10.4.60.2 && ip route add 10.4.50.0/24 via 10.4.60.2
+      && ip route add 10.4.70.0/24 via 10.4.60.2 && exec /lib/systemd/systemd"
+    hostname: nurse01-workstation01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.24
+      physician:
+        ipv4_address: 10.4.60.10
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  nurse01_workstation02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.60.2 && ip route add
+      10.4.20.0/24 via 10.4.60.2 && ip route add 10.4.30.0/24 via 10.4.60.2 && ip
+      route add 10.4.40.0/24 via 10.4.60.2 && ip route add 10.4.50.0/24 via 10.4.60.2
+      && ip route add 10.4.70.0/24 via 10.4.60.2 && exec /lib/systemd/systemd"
+    hostname: nurse01-workstation02
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.25
+      physician:
+        ipv4_address: 10.4.60.11
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  nurse01_workstation03:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.60.2 && ip route add
+      10.4.20.0/24 via 10.4.60.2 && ip route add 10.4.30.0/24 via 10.4.60.2 && ip
+      route add 10.4.40.0/24 via 10.4.60.2 && ip route add 10.4.50.0/24 via 10.4.60.2
+      && ip route add 10.4.70.0/24 via 10.4.60.2 && exec /lib/systemd/systemd"
+    hostname: nurse01-workstation03
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.26
+      physician:
+        ipv4_address: 10.4.60.12
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  oob:
+    cgroup: host
+    hostname: oob
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.27
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes:
+    - /sys/fs/cgroup:/sys/fs/cgroup
+    - /lib/modules:/lib/modules
+    - /var/run/docker.sock:/var/run/host-docker.sock
+  patient01_monitor01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient01-monitor01
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.10
+      control:
+        ipv4_address: 10.4.0.28
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient01_monitor02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient01-monitor02
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.11
+      control:
+        ipv4_address: 10.4.0.29
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient02_monitor01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient02-monitor01
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.12
+      control:
+        ipv4_address: 10.4.0.30
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient02_monitor02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient02-monitor02
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.13
+      control:
+        ipv4_address: 10.4.0.31
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient03_monitor01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient03-monitor01
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.14
+      control:
+        ipv4_address: 10.4.0.32
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient03_monitor02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient03-monitor02
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.15
+      control:
+        ipv4_address: 10.4.0.33
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient04_monitor01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient04-monitor01
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.16
+      control:
+        ipv4_address: 10.4.0.34
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient04_monitor02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient04-monitor02
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.17
+      control:
+        ipv4_address: 10.4.0.35
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient05_monitor01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient05-monitor01
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.18
+      control:
+        ipv4_address: 10.4.0.36
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient05_monitor02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.20.0/24 via 10.4.10.2 && ip route add
+      10.4.30.0/24 via 10.4.10.2 && ip route add 10.4.40.0/24 via 10.4.10.2 && ip
+      route add 10.4.50.0/24 via 10.4.10.2 && ip route add 10.4.60.0/24 via 10.4.10.2
+      && ip route add 10.4.70.0/24 via 10.4.10.2 && exec /lib/systemd/systemd"
+    hostname: patient05-monitor02
+    image: base:latest
+    networks:
+      cardiac:
+        ipv4_address: 10.4.10.19
+      control:
+        ipv4_address: 10.4.0.37
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient_bed01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.20.2 && ip route add
+      10.4.30.0/24 via 10.4.20.2 && ip route add 10.4.40.0/24 via 10.4.20.2 && ip
+      route add 10.4.50.0/24 via 10.4.20.2 && ip route add 10.4.60.0/24 via 10.4.20.2
+      && ip route add 10.4.70.0/24 via 10.4.20.2 && exec /lib/systemd/systemd"
+    hostname: patient-bed01
+    image: base:latest
+    networks:
+      clinic:
+        ipv4_address: 10.4.20.12
+      control:
+        ipv4_address: 10.4.0.38
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient_bed02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.20.2 && ip route add
+      10.4.30.0/24 via 10.4.20.2 && ip route add 10.4.40.0/24 via 10.4.20.2 && ip
+      route add 10.4.50.0/24 via 10.4.20.2 && ip route add 10.4.60.0/24 via 10.4.20.2
+      && ip route add 10.4.70.0/24 via 10.4.20.2 && exec /lib/systemd/systemd"
+    hostname: patient-bed02
+    image: base:latest
+    networks:
+      clinic:
+        ipv4_address: 10.4.20.13
+      control:
+        ipv4_address: 10.4.0.39
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient_bed03:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.20.2 && ip route add
+      10.4.30.0/24 via 10.4.20.2 && ip route add 10.4.40.0/24 via 10.4.20.2 && ip
+      route add 10.4.50.0/24 via 10.4.20.2 && ip route add 10.4.60.0/24 via 10.4.20.2
+      && ip route add 10.4.70.0/24 via 10.4.20.2 && exec /lib/systemd/systemd"
+    hostname: patient-bed03
+    image: base:latest
+    networks:
+      clinic:
+        ipv4_address: 10.4.20.14
+      control:
+        ipv4_address: 10.4.0.40
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient_bed04:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.20.2 && ip route add
+      10.4.30.0/24 via 10.4.20.2 && ip route add 10.4.40.0/24 via 10.4.20.2 && ip
+      route add 10.4.50.0/24 via 10.4.20.2 && ip route add 10.4.60.0/24 via 10.4.20.2
+      && ip route add 10.4.70.0/24 via 10.4.20.2 && exec /lib/systemd/systemd"
+    hostname: patient-bed04
+    image: base:latest
+    networks:
+      clinic:
+        ipv4_address: 10.4.20.15
+      control:
+        ipv4_address: 10.4.0.41
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  patient_monitor_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.50.2 && ip route add
+      10.4.20.0/24 via 10.4.50.2 && ip route add 10.4.30.0/24 via 10.4.50.2 && ip
+      route add 10.4.40.0/24 via 10.4.50.2 && ip route add 10.4.60.0/24 via 10.4.50.2
+      && ip route add 10.4.70.0/24 via 10.4.50.2 && exec /lib/systemd/systemd"
+    hostname: patient-monitor-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.42
+      monitor:
+        ipv4_address: 10.4.50.11
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  physician01_terminal01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.60.2 && ip route add
+      10.4.20.0/24 via 10.4.60.2 && ip route add 10.4.30.0/24 via 10.4.60.2 && ip
+      route add 10.4.40.0/24 via 10.4.60.2 && ip route add 10.4.50.0/24 via 10.4.60.2
+      && ip route add 10.4.70.0/24 via 10.4.60.2 && exec /lib/systemd/systemd"
+    hostname: physician01-terminal01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.43
+      physician:
+        ipv4_address: 10.4.60.14
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  physician01_terminal02:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.60.2 && ip route add
+      10.4.20.0/24 via 10.4.60.2 && ip route add 10.4.30.0/24 via 10.4.60.2 && ip
+      route add 10.4.40.0/24 via 10.4.60.2 && ip route add 10.4.50.0/24 via 10.4.60.2
+      && ip route add 10.4.70.0/24 via 10.4.60.2 && exec /lib/systemd/systemd"
+    hostname: physician01-terminal02
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.44
+      physician:
+        ipv4_address: 10.4.60.15
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
+  physician_router:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.40.0/24 via 10.4.30.2 && ip route add
+      10.4.10.0/24 via 10.4.30.3 && ip route add 10.4.70.0/24 via 10.4.30.5 && ip
+      route add 10.4.50.0/24 via 10.4.30.6 && ip route add 10.4.20.0/24 via 10.4.30.7
+      && exec /lib/systemd/systemd"
+    hostname: physician-router
+    image: base:latest
+    networks:
+      control:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv4.conf.IFNAME.forwarding=0
+        ipv4_address: 10.4.0.45
+      hospital:
+        ipv4_address: 10.4.30.4
+      physician:
+        ipv4_address: 10.4.60.2
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 1
+      net.ipv4.conf.all.rp_filter: 1
+      net.ipv4.conf.default.rp_filter: 1
+      net.ipv4.ip_forward: 1
+    tmpfs: *id001
+    volumes: *id002
+  server_router:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.40.0/24 via 10.4.30.2 && ip route add
+      10.4.10.0/24 via 10.4.30.3 && ip route add 10.4.60.0/24 via 10.4.30.4 && ip
+      route add 10.4.50.0/24 via 10.4.30.6 && ip route add 10.4.20.0/24 via 10.4.30.7
+      && exec /lib/systemd/systemd"
+    hostname: server-router
+    image: base:latest
+    networks:
+      control:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv4.conf.IFNAME.forwarding=0
+        ipv4_address: 10.4.0.46
+      hospital:
+        ipv4_address: 10.4.30.5
+      server:
+        ipv4_address: 10.4.70.2
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 1
+      net.ipv4.conf.all.rp_filter: 1
+      net.ipv4.conf.default.rp_filter: 1
+      net.ipv4.ip_forward: 1
+    tmpfs: *id001
+    volumes: *id002
+  sibel_health_server01:
+    cgroup: host
+    command: /bin/bash -c "ip route add 10.4.10.0/24 via 10.4.70.2 && ip route add
+      10.4.20.0/24 via 10.4.70.2 && ip route add 10.4.30.0/24 via 10.4.70.2 && ip
+      route add 10.4.40.0/24 via 10.4.70.2 && ip route add 10.4.50.0/24 via 10.4.70.2
+      && ip route add 10.4.60.0/24 via 10.4.70.2 && exec /lib/systemd/systemd"
+    hostname: sibel-health-server01
+    image: base:latest
+    networks:
+      control:
+        ipv4_address: 10.4.0.47
+      server:
+        ipv4_address: 10.4.70.12
+    privileged: true
+    sysctls:
+      net.ipv4.conf.all.forwarding: 0
+      net.ipv4.ip_forward: 0
+    tmpfs: *id001
+    volumes: *id002
