@@ -1,0 +1,141 @@
+// Summary of Optional Elements for Incus Composer
+// This file contains reusable content chunks about optional elements
+
+// tag::optional-elements-overview[]
+[#optional-elements-overview]
+== Optional Elements Overview
+
+Optional elements in Incus Composer allow for flexible configuration by providing sensible defaults when values are not explicitly specified.
+All optional elements are resolved during lockfile generation, ensuring predictable and consistent deployments.
+
+Key optional elements include:
+
+* **IP Address Assignment** (`ip4addr`) - Automatic allocation from predefined ranges
+* **CIDR Assignment** (`cidr`) - Auto-assignment of subnet address blocks
+* **Host Properties** - `is_router`, `master`, `floating_ip` (all default to `false`)
+* **String Shorthand** - Simplified syntax for common configurations
+
+When optional elements are omitted, implied value functions generate appropriate defaults while maintaining uniqueness and avoiding conflicts.
+// end::optional-elements-overview[]
+
+// tag::host-optional-properties[]
+[#host-optional-properties]
+=== Host Optional Properties
+
+The following host properties are optional with these defaults:
+
+[cols="1,1,3"]
+|===
+|Property |Default |Description
+
+|`floating_ip`
+|`false`
+|Whether the host receives an external IP address
+
+|`master`
+|`false`
+|Whether this host is the cluster master node
+
+|`is_router`
+|`false`
+|Whether this host functions as a network router
+
+|`roles`
+|`[]` (empty)
+|List of software roles to configure
+
+|`subnets`
+|`[]` (empty)
+|List of subnet assignments
+|===
+
+Legacy subnet fields (`subnet` and `subnet_list`) are automatically normalized to the `subnets` field.
+// end::host-optional-properties[]
+
+// tag::ip-allocation-summary[]
+[#ip-allocation-summary]
+=== IP Address Allocation
+
+IP addresses are automatically allocated based on host type:
+
+* **Regular hosts**: Allocated from `host_ip4_ranges`
+* **Router hosts** (`is_router: true`): Allocated from `router_ip4_ranges`
+* **Subnets without CIDR**: Auto-assigned from `cidr4_ranges`
+
+The system maintains allocation tracking to prevent conflicts and ensure uniqueness across the entire deployment.
+Uses the Rust `ipnet` crate for address generation and validation.
+// end::ip-allocation-summary[]
+
+// tag::string-shorthand-summary[]
+[#string-shorthand-summary]
+=== String Shorthand Support
+
+Many configuration elements support shorthand string notation:
+
+.Subnet Definition
+[source,yaml]
+----
+# Shorthand
+subnets:
+  - frontend
+  - backend
+
+# Equivalent full form
+subnets:
+  - name: frontend
+  - name: backend
+----
+
+.Role Definition
+[source,yaml]
+----
+# Shorthand
+roles:
+  - nginx
+  - monitoring
+
+# Equivalent full form
+roles:
+  - name: nginx
+  - name: monitoring
+----
+
+All shorthand forms are expanded to full associative arrays in the lockfile.
+// end::string-shorthand-summary[]
+
+// tag::lockfile-resolution[]
+[#lockfile-resolution]
+=== Value Resolution in Lockfiles
+
+Optional elements follow this resolution priority:
+
+1. **Explicit values** in `incus-compose.yaml`
+2. **Inherited values** from templates or parent configurations
+3. **Default values** defined by the schema
+4. **Generated values** from implied value functions
+
+The lockfile (`incus-compose.lock`) contains all resolved values explicitly, serving as the authoritative source for deployments.
+Generated values (IDs, MAC addresses, IP addresses) remain stable across lockfile updates unless explicitly changed.
+// end::lockfile-resolution[]
+
+// tag::best-practices-optional[]
+[#best-practices-optional]
+=== Best Practices for Optional Elements
+
+**Use Defaults When:**
+* Developing or testing configurations
+* Values are not critical to functionality
+* Seeking consistent behavior across environments
+
+**Specify Explicit Values When:**
+* Deploying to production environments
+* Integrating with existing infrastructure
+* Network configuration requires specific addresses
+* Debugging connectivity issues
+
+**Configuration Management:**
+* Keep both compose and lock files in version control
+* Review auto-assigned values in the lockfile
+* Document dependencies on generated values
+* Plan for value stability during scaling
+// end::best-practices-optional[]

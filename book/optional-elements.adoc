@@ -1,0 +1,455 @@
+= Optional Elements
+:toc:
+
+Optional elements are those that can be omitted from a configuration file without affecting the overall structure or functionality of the system.
+
+Each optional element must have an implied value function (or function object) which is used to provide a default value when the element is not present in the configuration file.
+
+== Overview
+
+When creating an `incus-compose.yaml` file, many configuration elements are optional and will be automatically assigned default values if not explicitly specified.
+These optional elements are resolved during the lockfile generation process, ensuring that all implicit values become explicit in the `incus-compose.lock` file.
+
+The optional element system provides flexibility while maintaining predictable behavior through well-defined defaults and automatic value generation.
+
+== IP Address Assignment
+
+=== `ip4addr`
+
+Selects from a list of predefined IP addresses (may be specified by ranges), keeps a record of assigned IP addresses.
+It uses different ranges based on the node type.
+Specifically it uses a specific range for router hosts.
+Uses the rust `ipnet` crate to generate the IP addresses.
+
+The IP address assignment system automatically allocates IPv4 addresses from predefined ranges based on the host type and subnet assignment.
+
+==== Configuration
+
+The default IP address ranges are planned to be defined in the system configuration:
+
+[source,yaml]
+----
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+----
+
+NOTE: The `defaults` section is shown in examples but not yet fully implemented in the current schema.
+
+==== Behavior
+
+* Regular hosts receive IP addresses from the `host_ip4_ranges`
+* Hosts with `is_router: true` receive IP addresses from the `router_ip4_ranges`
+* IP addresses are allocated sequentially within the specified ranges
+* The system maintains a registry of assigned addresses to prevent conflicts
+* Each subnet maintains its own IP allocation pool
+
+==== Implementation
+
+The system uses the Rust `ipnet` crate to:
+
+* Parse and validate IP address ranges
+* Generate sequential IP addresses within ranges
+* Handle CIDR notation for subnet definitions
+* Validate IP address assignments against subnet boundaries
+
+== CIDR Assignment
+
+=== `cidr`
+
+Selects from a list of predefined CIDR addresses for the subnets.
+Uses the rust `ipnet` crate to generate the CIDR addresses.
+
+When a subnet is defined without an explicit CIDR block, the system automatically assigns one from the configured ranges.
+
+==== Configuration
+
+[source,yaml]
+----
+defaults:
+  cidr4_ranges:
+    - start: 192.168.10.0/16
+      end: 192.168.90.0/16
+----
+
+NOTE: The `defaults` section is planned for future implementation.
+
+==== Behavior
+
+* Subnets without explicit CIDR values are assigned from `cidr4_ranges`
+* CIDR blocks are allocated to avoid overlapping address spaces
+* The system ensures sufficient address space for the expected number of hosts
+* Gateway addresses are automatically reserved (typically `.1`)
+
+==== Example Usage
+
+[source,yaml]
+----
+subnets:
+  - name: frontend
+    # CIDR will be auto-assigned from cidr4_ranges
+  - name: backend
+    cidr: 10.0.2.0/24  # Explicitly specified
+  - name: management
+    # CIDR will be auto-assigned from cidr4_ranges
+----
+
+In the lockfile, this becomes:
+
+[source,yaml]
+----
+subnets:
+  - name: frontend
+    cidr: 192.168.10.0/24  # Auto-assigned
+  - name: backend
+    cidr: 10.0.2.0/24      # Explicitly specified
+  - name: management
+    cidr: 192.168.11.0/24  # Auto-assigned
+----
+
+== Host Properties
+
+=== `is_router`
+
+Defaults to 'false'.
+
+The `is_router` field determines whether a host functions as a network router, affecting IP address allocation and network configuration.
+
+==== Default Value
+
+[source,yaml]
+----
+is_router: false
+----
+
+==== Behavior
+
+* When `false`: Host receives IP addresses from `host_ip4_ranges`
+* When `true`: Host receives IP addresses from `router_ip4_ranges`
+* Router hosts typically connect to multiple subnets
+* Router configuration enables IP forwarding and routing services
+
+==== Example
+
+[source,yaml]
+----
+hosts:
+  - name: regular_host
+    flavor: small_flavor
+    image: base_image
+    # is_router: false  # This is the default
+
+  - name: gateway_router
+    flavor: small_flavor
+    image: router_image
+    is_router: true
+    subnets:
+      - internal
+      - external
+----
+
+=== `master`
+
+Defaults to 'false'.
+
+The `master` field designates a host as the master node in a cluster configuration.
+
+==== Default Value
+
+[source,yaml]
+----
+master: false
+----
+
+==== Behavior
+
+* Only one host per deployment should have `master: true`
+* Master hosts often receive additional configuration for cluster management
+* Master nodes may get priority scheduling or resource allocation
+* Useful for database clusters, Kubernetes master nodes, or similar architectures
+
+==== Example
+
+[source,yaml]
+----
+hosts:
+  - name: cluster_master
+    flavor: xlarge_flavor
+    image: base_image
+    master: true
+    roles:
+      - name: kubernetes_master
+
+  - name: cluster_worker_01
+    flavor: medium_flavor
+    image: base_image
+    # master: false  # This is the default
+    roles:
+      - name: kubernetes_worker
+----
+
+=== `floating_ip`
+
+Defaults to 'false'.
+
+The `floating_ip` field determines whether a host should receive a floating IP address for external access.
+
+==== Default Value
+
+[source,yaml]
+----
+floating_ip: false
+----
+
+==== Behavior
+
+* When `true`: Host receives an additional IP address for external connectivity
+* Floating IPs are typically routable from outside the local network
+* Useful for hosts that need to be accessible from the internet
+* The actual floating IP address is allocated during deployment
+
+==== Example
+
+[source,yaml]
+----
+hosts:
+  - name: public_web_server
+    flavor: medium_flavor
+    image: base_image
+    floating_ip: true  # Needs external access
+
+  - name: internal_database
+    flavor: large_flavor
+    image: base_image
+    # floating_ip: false  # This is the default
+----
+
+== String Shorthand
+
+=== `name`
+
+In some cases, it is possible to use a string value in place of an associative array.
+For example, when specifying subnets, if only the name is provided as a string, the optional elements may be omitted in the incus-compose file.
+However, they must be explicitly specified in an associative array in the incus-lockfile.
+
+==== Subnet Definition Shorthand
+
+When defining subnets, you can use either the full associative array format or a simple string format:
+
+[source,yaml]
+----
+# Full format (associative array)
+subnets:
+  - name: frontend
+    cidr: 10.0.1.0/24
+    status: enabled
+
+# Shorthand format (string only)
+subnets:
+  - frontend
+  - backend
+  - management
+----
+
+==== Lockfile Expansion
+
+In the lockfile, all shorthand definitions are expanded to full associative arrays:
+
+[source,yaml]
+----
+# Original shorthand in incus-compose.yaml
+subnets:
+  - frontend
+  - backend
+
+# Expanded in incus-compose.lock
+subnets:
+  - name: frontend
+    cidr: 192.168.10.0/24  # Auto-assigned
+    id: subnet_001         # Generated
+    gateway: 192.168.10.1  # Auto-calculated
+    network_type: bridge   # Default value
+  - name: backend
+    cidr: 192.168.11.0/24  # Auto-assigned
+    id: subnet_002         # Generated
+    gateway: 192.168.11.1  # Auto-calculated
+    network_type: bridge   # Default value
+----
+
+==== Role Definition Shorthand
+
+Similar shorthand is available for role definitions:
+
+[source,yaml]
+----
+# Full format
+roles:
+  - name: nginx
+    values: ["default_config"]
+  - name: monitoring
+    values: ["prometheus", "grafana"]
+
+# Shorthand format (when no values needed)
+roles:
+  - nginx
+  - monitoring
+  - backup
+----
+
+== Value Resolution Process
+
+The optional element system follows a specific resolution order to determine final values:
+
+. **Explicit values**: Values directly specified in the `incus-compose.yaml` file
+. **Inherited values**: Values from parent or template configurations
+. **Default values**: Schema-defined defaults for optional elements
+. **Generated values**: Computed values from implied value functions
+
+=== Resolution Examples
+
+[source,yaml]
+----
+# Input: incus-compose.yaml
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    # Many fields omitted - will use defaults
+
+# Output: incus-compose.lock (expanded)
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    is_router: false          # Default value
+    master: false             # Default value
+    floating_ip: false        # Default value
+    subnets: []               # Default empty array
+    roles: []                 # Default empty array
+    ip_addresses: {}          # Generated (empty - no subnets)
+    mac_address: "02:00:00:00:00:01"  # Generated
+    id: "host_001"            # Generated
+    instance_type: container  # Default value
+    resources:                # Resolved from flavor
+      cpu:
+        cores: 2
+        limit: "100%"
+      memory:
+        limit: "2GB"
+----
+
+== Implied Value Functions
+
+The system uses specialized functions to generate values for optional elements:
+
+=== IP Address Generator
+
+* Maintains pools of available IP addresses per subnet
+* Tracks used addresses to prevent conflicts
+* Allocates addresses sequentially within ranges
+* Respects subnet boundaries and reserved addresses
+
+=== MAC Address Generator
+
+* Generates unique MAC addresses using the local administration range
+* Uses the `02:00:00:xx:xx:xx` pattern for generated addresses
+* Maintains uniqueness across the entire deployment
+* Avoids conflicts with existing hardware addresses
+
+=== Unique ID Generator
+
+* Creates sequential identifiers for hosts (`host_001`, `host_002`, etc.)
+* Creates sequential identifiers for subnets (`subnet_001`, `subnet_002`, etc.)
+* Ensures uniqueness within each identifier namespace
+* Maintains consistent ordering across regenerations
+
+=== CIDR Allocator
+
+* Allocates non-overlapping CIDR blocks from configured ranges
+* Ensures sufficient address space for expected host count
+* Avoids conflicts with explicitly specified CIDR blocks
+* Optimizes allocation to minimize fragmentation
+
+== Best Practices
+
+=== When to Use Defaults
+
+* Use defaults for development and testing environments
+* Use defaults when the exact values are not critical to functionality
+* Use defaults to reduce configuration file complexity
+* Use defaults for consistent behavior across similar deployments
+
+=== When to Specify Explicit Values
+
+* Production environments should specify critical values explicitly
+* Network configurations often require explicit CIDR blocks
+* Use explicit values when integration with existing infrastructure requires specific addresses
+* Specify explicit values when debugging or troubleshooting network issues
+
+=== Configuration Management
+
+* Keep track of auto-assigned values by reviewing the lockfile
+* Use version control for both compose and lock files
+* Document any dependencies on auto-assigned values
+* Plan for value stability when scaling or modifying deployments
+
+== Integration with Lockfile System
+
+The optional elements system is tightly integrated with the lockfile mechanism:
+
+=== Lockfile Generation
+
+* All optional elements are resolved and made explicit in the lockfile
+* Generated values are preserved across lockfile updates
+* Only missing values are regenerated, maintaining stability
+* Lockfile serves as the authoritative source for deployed configurations
+
+=== Value Persistence
+
+* Once a value is assigned and saved in the lockfile, it remains stable
+* Explicit changes to the compose file override lockfile values
+* Lockfile deletion triggers complete value regeneration
+* Backup lockfiles preserve historical value assignments
+
+== Troubleshooting Optional Elements
+
+=== Common Issues
+
+**IP Address Conflicts**
+
+* Check that IP ranges don't overlap with existing infrastructure
+* Verify that CIDR blocks have sufficient address space
+* Review router vs. host IP range separation
+
+**Missing Required Elements**
+
+* Ensure required fields are present even when using defaults
+* Verify that referenced flavors and images exist
+* Check that subnet references in hosts match defined subnets
+
+**Inconsistent Values**
+
+* Compare compose file against lockfile for discrepancies
+* Regenerate lockfile if values appear corrupted
+* Validate that manual changes don't conflict with generated values
+
+=== Debugging Tips
+
+* Use the lockfile to understand resolved values
+* Enable verbose logging to trace value resolution
+* Compare successful configurations when troubleshooting
+* Validate YAML syntax before processing
+
+== See Also
+
+* xref:schema.adoc[Schema Documentation] - Complete schema reference
+* xref:development.adoc[Development Guide] - Implementation details
+* `examples/optional-elements-demo.yaml` - Comprehensive demonstration of optional elements
+* `examples/base-hospital-network.yaml` - Real-world example using optional elements
+* `examples/` directory - Additional working configuration examples
+
+include::includes/project-info.adoc[tag=external-resources]

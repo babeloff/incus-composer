@@ -5,478 +5,835 @@ Version: 1.0
 
 == Overview
 
-The `incus-compose.yaml` schema is designed to define and manage Incus system containers and virtual machines, similar to how `docker-compose.yml` manages application containers.
-However, while Docker Compose is focused on application deployment, Incus Compose is focused on system-level infrastructure, including full system containers and virtual machines.
+The `incus-compose.yaml` schema is designed to define and manage infrastructure deployments using Incus system containers and virtual machines.
+Unlike application-focused container orchestration,
+incus-compose focuses on infrastructure provisioning with hosts, networks, and role-based configuration management.
 
-== Key Differences from Docker Compose
+The schema supports both a compact compose format and an expanded lockfile format that makes all implicit values explicit.
 
-* *System vs Application Focus*: Incus manages complete system containers and VMs, not just application containers
-* *Native VM Support*: First-class support for virtual machines alongside containers
-* *Hardware Device Management*: Direct support for GPU, USB, and other hardware passthrough
-* *Network Flexibility*: Support for various network types (bridge, macvlan, OVN, etc.)
-* *Storage Pools*: Explicit storage pool management with multiple backend drivers
-* *Profile System*: Reusable profiles for common configurations
-* *Cloud-init Integration*: Built-in cloud-init support for initialization
+== Key Concepts
+
+* *Infrastructure Focus*: Manages complete system hosts rather than application containers
+* *Role-Based Configuration*: Hosts are configured through assignable roles with parameters
+* *Network-Centric*: First-class subnet management with automatic IP allocation
+* *Flavor System*: Resource templates for consistent host sizing
+* *Lockfile Expansion*: All optional and implicit values are made explicit in lockfiles
+
+== File Types
+
+=== Compose File (`incus-compose.yaml`)
+
+The primary configuration file with optional fields and references.
+Uses implicit values and defaults where not specified.
+
+=== Lockfile (`incus-compose.lock`)
+
+An expanded version where all optional fields are populated with explicit values.
+Generated automatically and contains resolved references and allocated resources.
 
 == Schema Structure
 
 [source,yaml]
 ----
 version: "1.0"
-containers: {...}
-networks: {...}
-storage: {...}
-profiles: {...}
+hosts: [...]
+subnets: [...]
+flavors: {...}    # optional
+images: {...}     # optional
+defaults: {...}   # optional
 ----
 
 == Top-Level Fields
 
-=== version (required)
+=== version (optional)
 
 The version of the incus-compose schema being used.
+
+*Default*: `"1.0"`
 
 [source,yaml]
 ----
 version: "1.0"
 ----
 
-=== containers (required)
+=== hosts (required)
 
-A map of container/VM definitions.
-Each key is the name of the instance.
+An array of host definitions.
+Each host represents a system container or virtual machine.
 
-=== networks (optional)
+=== subnets (required)
 
-A map of network definitions.
-Each key is the network name.
+An array of subnet definitions.
+Defines the network topology for host deployment.
 
-=== storage (optional)
+=== flavors (optional)
 
-A map of storage pool definitions.
-Each key is the pool name.
+A map of flavor definitions that specify resource allocation templates.
+Can be defined externally or inherited from system defaults.
 
-=== profiles (optional)
+=== images (optional)
 
-A map of profile definitions.
-Each key is the profile name.
+A map of image definitions.
+Can be defined externally or reference standard image repositories.
 
-== Container Definition
+=== defaults (optional)
 
-A container definition describes a single Incus instance (container or VM).
+Configuration for optional element default values.
+Defines IP address ranges, CIDR ranges, and other default behaviors for automatic value assignment.
+
+[source,yaml]
+----
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+  cidr4_ranges:
+    - start: 192.168.20.0/16
+      end: 192.168.80.0/16
+----
+
+== Host Definition
+
+A host definition describes a single Incus instance with its network placement and role assignments.
 
 === Basic Fields
 
-==== instance_type
+==== name (required)
+
+Unique identifier for the host.
+
+[source,yaml]
+----
+hosts:
+  - name: web_server_01
+----
+
+==== flavor (required)
+
+Reference to a flavor that defines resource allocation.
+
+*Common values*: `small_flavor`, `medium_flavor`, `large_flavor`, `xlarge_flavor`
+
+[source,yaml]
+----
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+----
+
+==== image (required)
+
+Reference to a base image for the host.
+
+*Common values*: `base_image`, `ubuntu_image`, `alpine_image`
+
+[source,yaml]
+----
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+----
+
+=== Network Assignment
+
+==== subnets (optional)
+
+Subnet assignments for the host.
+Can be a single subnet or multiple subnets for multi-homed hosts like routers.
+
+[source,yaml]
+----
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    subnets: [frontend]
+
+  - name: core_router
+    flavor: small_flavor
+    image: router_image
+    is_router: true
+    subnets:
+      - frontend
+      - backend
+      - dmz
+----
+
+===== Backward Compatibility
+
+The schema also supports the legacy `subnet` and `subnet_list` fields for backward compatibility:
+
+[source,yaml]
+----
+hosts:
+  # Single subnet (legacy format)
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    subnet: frontend
+
+  # Multiple subnets (legacy format)
+  - name: core_router
+    flavor: small_flavor
+    image: router_image
+    is_router: true
+    subnet_list:
+      - frontend
+      - backend
+      - dmz
+----
+
+These legacy fields are automatically normalized to the `subnets` field during processing.
+
+=== Host Properties
+
+==== floating_ip (optional)
+
+Whether the host should receive a floating IP address for external access.
+
+*Default*: `false`
+
+[source,yaml]
+----
+hosts:
+  - name: public_web
+    flavor: medium_flavor
+    image: base_image
+    floating_ip: true
+----
+
+==== master (optional)
+
+Whether this host serves as the master node in a cluster.
+
+*Default*: `false`
+
+[source,yaml]
+----
+hosts:
+  - name: master_node
+    flavor: xlarge_flavor
+    image: base_image
+    master: true
+----
+
+==== is_router (optional)
+
+Whether this host functions as a network router.
+
+*Default*: `false`
+
+[source,yaml]
+----
+hosts:
+  - name: gateway
+    flavor: small_flavor
+    image: router_image
+    is_router: true
+    subnets:
+      - internal
+      - external
+----
+
+=== Role Assignment
+
+==== roles (optional)
+
+List of roles to assign to the host.
+Roles define software configuration and services.
+
+[source,yaml]
+----
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    roles:
+      - name: nginx
+      - name: monitoring
+        values: ["prometheus", "grafana"]
+      - name: backup
+        values: ["daily"]
+----
+
+===== Role Structure
+
+Roles can be defined in two formats:
+
+**Shorthand Format** (string only):
+[source,yaml]
+----
+roles:
+  - nginx
+  - monitoring
+  - backup
+----
+
+**Full Format** (with configuration):
+[source,yaml]
+----
+roles:
+  - name: database
+    values: ["postgresql", "primary"]
+  - name: ssh
+    values: ["key_server_01"]
+  - name: monitoring
+    values: ["prometheus", "grafana"]
+----
+
+**Mixed Format** (combining both):
+[source,yaml]
+----
+roles:
+  - nginx  # Shorthand
+  - name: database  # Full format
+    values: ["postgresql", "primary"]
+  - monitoring  # Shorthand
+----
+
+Each role in full format consists of:
+
+* `name` (required): The role identifier
+* `values` (optional): Parameters or configuration values for the role
+
+Shorthand roles are automatically expanded to full format in the lockfile with empty `values` arrays.
+
+== Subnet Definition
+
+Subnets define network segments and IP allocation ranges.
+Subnets can be defined in two formats: shorthand (string only) or full configuration (object).
+
+=== Subnet Formats
+
+**Shorthand Format** (string only):
+[source,yaml]
+----
+subnets:
+  - frontend
+  - backend
+  - management
+----
+
+**Full Format** (with explicit configuration):
+[source,yaml]
+----
+subnets:
+  - name: frontend
+    cidr: 10.0.1.0/24
+  - name: backend
+    cidr: 10.0.2.0/24
+  - name: management
+    # CIDR will be auto-assigned
+----
+
+**Mixed Format** (combining both):
+[source,yaml]
+----
+subnets:
+  - name: frontend
+    cidr: 10.0.1.0/24
+  - backend  # Shorthand - CIDR auto-assigned
+  - name: management  # Full format without CIDR
+----
+
+=== Basic Fields
+
+==== name (required)
+
+Unique identifier for the subnet.
+Always present in full format, implied in shorthand format.
+
+==== cidr (optional)
+
+CIDR notation defining the IP range.
+If omitted, will be auto-assigned from the `defaults.cidr4_ranges` configuration in the lockfile.
+
+Shorthand subnet definitions automatically have their CIDR values assigned during lockfile generation.
+
+== Flavor Definition
+
+Flavors are resource allocation templates.
+
+=== Fields
+
+==== name (required)
+
+Unique identifier for the flavor.
+
+==== description (optional)
+
+Human-readable description.
+
+==== cpu (required)
+
+CPU specification.
+
+[source,yaml]
+----
+flavors:
+  small_flavor:
+    name: small_flavor
+    description: "Small instance - 1 CPU, 1GB RAM"
+    cpu:
+      cores: 1
+      limit: "100%"
+    memory:
+      limit: "1GB"
+    instance_type: container
+----
+
+===== CPU Specification
+
+* `cores` (required): Number of CPU cores
+* `limit` (optional): CPU usage limit as percentage
+* `allowance` (optional): CPU time allowance
+* `priority` (optional): Scheduling priority
+
+==== memory (required)
+
+Memory specification.
+
+* `limit` (required): Memory limit (e.g., "1GB", "512MB")
+* `swap` (optional): Swap limit
+* `swap_priority` (optional): Swap priority
+
+==== storage (optional)
+
+Storage specification.
+
+[source,yaml]
+----
+storage:
+  size: "20GB"
+  pool: "default"
+  storage_type: "ssd"
+----
+
+==== instance_type (optional)
 
 Type of instance to create.
 
 *Values*: `container` (default), `virtual-machine`
 
-[source,yaml]
-----
-containers:
-  myvm:
-    instance_type: virtual-machine
-----
+== Image Definition
 
-==== image (required)
+Images define base system templates.
 
-The base image to use for the instance.
+=== Fields
 
 [source,yaml]
 ----
-containers:
-  web:
-    image: "ubuntu/22.04"
+images:
+  base_image:
+    name: base_image
+    description: "Standard Ubuntu base"
+    source: "images:"
+    fingerprint: "ubuntu/22.04/amd64"
+    architecture: "x86_64"
+    os: "ubuntu"
 ----
 
-==== image_server
+==== source (optional)
 
-The image server to pull from.
+Image repository source.
 
-*Default*: `images:`
+*Default*: `"images:"`
 
-*Common values*: `images:`, `ubuntu:`, `ubuntu-daily:`
+*Common values*: `"images:"`, `"ubuntu:"`, `"ubuntu-daily:"`
+
+==== architecture (optional)
+
+Target architecture.
+
+*Default*: `"x86_64"`
+
+== Lockfile Structure
+
+The lockfile contains the expanded form with all implicit values made explicit.
+
+=== Additional Fields in Lockfile
+
+==== Expanded Host Fields
 
 [source,yaml]
 ----
-containers:
-  web:
-    image: "ubuntu/22.04"
-    image_server: "ubuntu:"
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    floating_ip: false          # Always explicit
+    master: false              # Always explicit
+    is_router: false           # Always explicit
+    roles: []                  # Always present, may be empty
+    subnets: [frontend]
+
+    # Generated fields
+    id: "host_001"
+    mac_address: "02:00:00:00:00:01"
+    ip_addresses:
+      frontend: "10.0.1.10"
+    instance_type: container
+    resources:
+      cpu:
+        cores: 2
+        limit: "100%"
+      memory:
+        limit: "2GB"
 ----
 
-==== description
+==== Expanded Subnet Fields
 
-Human-readable description of the instance.
+All shorthand subnet definitions are converted to full format in the lockfile:
 
 [source,yaml]
 ----
-containers:
-  web:
-    description: "Production web server"
+# Original shorthand: - frontend
+# Expanded in lockfile:
+subnets:
+  - name: frontend
+    cidr: "10.0.1.0/24"        # Auto-assigned or explicit
+    id: "subnet_001"           # Generated
+    gateway: "10.0.1.1"        # Generated
+    network_type: bridge       # Always explicit
+    config: {}                 # Always present
 ----
 
-=== Resource Limits
-
-==== cpu
-
-CPU resource limits and allocation.
+==== Metadata Section
 
 [source,yaml]
 ----
-containers:
-  web:
-    cpu:
-      limit: "2"           # Number of CPUs (or range like "1-3")
-      allowance: "50%"     # CPU time percentage
-      priority: 10         # Scheduling priority
-----
+metadata:
+  generated_at: "2024-01-15T10:30:00Z"
+  generator_version: "1.0.0"
+  source_hash: "sha256:abc123..."
+  used_values:
+    ip_addresses:
+      frontend: ["10.0.1.10", "10.0.1.11"]
+      backend: ["10.0.2.10"]
+    mac_addresses: ["02:00:00:00:00:01", "02:00:00:00:00:02"]
+    host_ids: ["host_001", "host_002"]
+    subnet_ids: ["subnet_001", "subnet_002"]
 
-==== memory
+==== Defaults Configuration
 
-Memory resource limits.
-
-[source,yaml]
-----
-containers:
-  web:
-    memory:
-      limit: "2GB"         # Memory limit
-      swap: "1GB"          # Swap limit
-      swap_priority: 5     # Swap priority
-----
-
-=== Networking
-
-==== networks
-
-List of networks to attach to the instance.
+The lockfile preserves the defaults configuration used during generation:
 
 [source,yaml]
 ----
-containers:
-  web:
-    networks:
-      - frontend
-      - backend
+defaults:
+  host_ip4_ranges:
+    - start: "192.168.10.100"
+      end: "192.168.10.200"
+  router_ip4_ranges:
+    - start: "192.168.1.100"
+      end: "192.168.1.200"
+  cidr4_ranges:
+    - start: "192.168.20.0/16"
+      end: "192.168.80.0/16"
 ----
 
-=== Storage
+== Value Resolution Priority
 
-==== volumes
+When processing an incus-compose file, values are resolved in this order:
 
-List of storage volumes to attach.
+1. *Explicit in compose file*: Values directly specified in `incus-compose.yaml`
+2. *Explicit in lockfile*: Values from existing `incus-compose.lock` (if present)
+3. *Default values*: Schema-defined defaults
+4. *Generated values*: Computed by implicit-value functions
 
-[source,yaml]
-----
-containers:
-  web:
-    volumes:
-      - source: "web-data"
-        target: "/var/www/html"
-        pool: "default"
-        readonly: false
-----
+=== Implicit Value Generation
 
-*Fields*:
+Certain fields are automatically generated using functions that maintain uniqueness:
 
-* `source`: Volume name or path
-* `target`: Mount point in the container
-* `pool`: Storage pool to use (optional)
-* `readonly`: Mount as read-only (default: false)
+==== IP Address Assignment
 
-=== Devices
+* Assigns sequential IP addresses within subnet CIDR ranges
+* Maintains used IP tracking to prevent conflicts
+* Reserves gateway addresses (.1) and broadcast addresses
 
-==== devices
+==== MAC Address Generation
 
-Map of device configurations.
+* Generates unique MAC addresses using the `02:00:00:xx:xx:xx` range
+* Maintains collision avoidance through used MAC tracking
 
-*Device Types*:
+==== Unique Identifiers
 
-* `disk`: Block device or mount
-* `nic`: Network interface
-* `proxy`: Port proxy
-* `gpu`: GPU passthrough
-* `usb`: USB device passthrough
-
-[source,yaml]
-----
-containers:
-  gaming:
-    devices:
-      gpu0:
-        type: gpu
-        id: "0"
-
-      disk0:
-        type: disk
-        source: "/dev/sdb"
-        path: "/mnt/data"
-
-      eth1:
-        type: nic
-        network: "public"
-        name: "eth1"
-        hwaddr: "00:16:3e:xx:xx:xx"
-
-      proxy-web:
-        type: proxy
-        listen: "tcp:0.0.0.0:80"
-        connect: "tcp:127.0.0.1:8080"
-----
-
-=== Configuration
-
-==== config
-
-Map of Incus configuration keys and values.
-These are passed directly to Incus.
-
-[source,yaml]
-----
-containers:
-  web:
-    config:
-      security.nesting: "true"
-      security.privileged: "false"
-      boot.autostart: "true"
-----
-
-==== environment
-
-Environment variables to set in the instance.
-
-[source,yaml]
-----
-containers:
-  app:
-    environment:
-      APP_ENV: "production"
-      DATABASE_URL: "postgresql://localhost/mydb"
-----
-
-=== Lifecycle
-
-==== autostart
-
-Whether the instance should start automatically.
-
-*Default*: `true`
-
-[source,yaml]
-----
-containers:
-  web:
-    autostart: true
-----
-
-==== boot_priority
-
-Boot order priority (higher numbers boot first).
-
-[source,yaml]
-----
-containers:
-  database:
-    boot_priority: 10
-
-  web:
-    boot_priority: 5
-----
-
-==== depends_on
-
-List of instances that should start before this one.
-
-[source,yaml]
-----
-containers:
-  web:
-    depends_on:
-      - database
-      - cache
-----
-
-=== Profiles
-
-==== profiles
-
-List of profiles to apply to the instance.
-
-[source,yaml]
-----
-containers:
-  web:
-    profiles:
-      - default
-      - web-server
-----
-
-=== Cloud-init
-
-==== cloud_init
-
-Cloud-init configuration for instance initialization.
-
-[source,yaml]
-----
-containers:
-  web:
-    cloud_init:
-      user_data: |
-        #cloud-config
-        packages:
-          - nginx
-          - certbot
-        runcmd:
-          - systemctl enable nginx
-          - systemctl start nginx
-
-      network_config: |
-        version: 2
-        ethernets:
-          eth0:
-            dhcp4: true
-----
-
-*Fields*:
-
-* `user_data`: Cloud-config user data
-* `network_config`: Network configuration
-* `vendor_data`: Vendor-specific data
-
-== Network Definition
-
-Networks define the network infrastructure for instances.
-
-[source,yaml]
-----
-networks:
-  frontend:
-    type: bridge
-    description: "Public-facing network"
-    config:
-      ipv4.address: "10.0.1.1/24"
-      ipv4.nat: "true"
-      ipv6.address: "none"
-----
-
-=== type
-
-The type of network.
-
-*Values*: `bridge`, `macvlan`, `sriov`, `ovn`, `physical`
-
-=== config
-
-Network-specific configuration options.
-
-*Common options*:
-
-* `ipv4.address`: IPv4 address and subnet
-* `ipv4.nat`: Enable NAT (true/false)
-* `ipv6.address`: IPv6 address or "none"
-* `bridge.driver`: Bridge driver (native/openvswitch)
-* `dns.domain`: DNS domain
-
-== Storage Pool Definition
-
-Storage pools define where and how storage is allocated.
-
-[source,yaml]
-----
-storage:
-  default:
-    driver: dir
-    description: "Default storage pool"
-    config:
-      source: "/var/lib/incus/storage-pools/default"
-
-  fast:
-    driver: zfs
-    description: "ZFS pool for databases"
-    config:
-      source: "tank/incus"
-      volume.size: "50GB"
-----
-
-=== driver
-
-The storage driver to use.
-
-*Values*: `dir`, `btrfs`, `lvm`, `zfs`, `ceph`
-
-=== config
-
-Driver-specific configuration.
-
-*Common options*:
-
-* `source`: Source path or device
-* `size`: Pool size
-* `volume.size`: Default volume size
-
-== Profile Definition
-
-Profiles are reusable configuration templates.
-
-[source,yaml]
-----
-profiles:
-  web-server:
-    description: "Common web server configuration"
-    config:
-      security.nesting: "true"
-      linux.kernel_modules: "ip_tables,ip6_tables"
-    devices:
-      eth0:
-        type: nic
-        network: "frontend"
-        name: "eth0"
-----
+* Generates sequential host IDs (`host_001`, `host_002`, etc.)
+* Generates sequential subnet IDs (`subnet_001`, `subnet_002`, etc.)
 
 == Complete Example
 
-See `examples/incus-compose.yaml` for a complete example demonstrating all features.
+[source,yaml]
+----
+# incus-compose.yaml
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+  cidr4_ranges:
+    - start: 192.168.20.0/16
+      end: 192.168.80.0/16
+
+hosts:
+  - name: oob
+    flavor: xlarge_flavor
+    floating_ip: true
+    image: base_image
+    master: true
+
+  - name: internet_firewall
+    flavor: small_flavor
+    image: base_image
+    is_router: true
+    roles:
+      - router  # Shorthand format
+    subnets:
+      - internet
+      - hospital
+
+  - name: web_server_01
+    flavor: medium_flavor
+    image: base_image
+    roles:
+      - nginx  # Shorthand format
+      - name: monitoring  # Full format
+        values: ["prometheus"]
+    subnets: [frontend]
+
+subnets:
+  - name: frontend
+    cidr: 10.0.1.0/24
+  - internet  # Shorthand format - CIDR auto-assigned
+  - name: hospital
+    cidr: 10.0.30.0/24
+----
 
 == Implementation Notes
 
-=== Incus API Integration
+=== Role System
 
-The schema is designed to map closely to the https://linuxcontainers.org/incus/docs/main/rest-api/[Incus REST API].
-Each field in the schema corresponds to API endpoints and parameters:
+The role system provides a flexible way to configure software and services on hosts.
+Roles can:
 
-* Container creation: `POST /1.0/instances`
-* Network creation: `POST /1.0/networks`
-* Storage pool creation: `POST /1.0/storage-pools`
-* Profile creation: `POST /1.0/profiles`
+* Install and configure software packages
+* Set up services and daemons
+* Configure network settings
+* Apply security policies
+* Set up monitoring and logging
 
-=== Future Enhancements
+=== Network Topology
 
-Potential additions to future schema versions:
+The subnet-based network model supports:
 
-. *Secrets Management*: Integration with secrets providers
-. *Health Checks*: Built-in health checking and restart policies
-. *Scaling*: Support for instance scaling and clustering
-. *Backup Configuration*: Automated backup policies
-. *Migration Rules*: Cross-host migration policies
-. *Resource Quotas*: Project-level resource quotas
-. *Snapshots*: Snapshot scheduling and management
-. *Monitoring*: Built-in monitoring and alerting
+* Isolated network segments
+* Router hosts for inter-subnet communication
+* Automatic IP allocation within subnets
+* Floating IP assignment for external access
 
-== Compatibility
+=== Resource Management
 
-This schema is designed for Incus 6.0 and later.
-Some features may require specific Incus versions or configurations.
+The flavor system provides:
+
+* Consistent resource allocation across environments
+* Easy scaling by changing flavors
+* Resource optimization through templates
+* Instance type selection (container vs VM)
 
 == Validation
 
-The Rust implementation includes full schema validation using serde for deserialization.
-Invalid configurations will produce clear error messages indicating the problem.
+The Rust implementation includes comprehensive validation:
+
+* Required field checking
+* Reference validation (flavors, images, subnets)
+* Network topology validation
+* Resource limit validation
+* Unique name enforcement
+* Automatic normalization of legacy subnet fields
+
+== Backward Compatibility
+
+The schema maintains backward compatibility with earlier field naming conventions:
+
+=== Legacy Subnet Fields
+
+* `subnet`: Single subnet assignment (converted to `subnets: [value]`)
+* `subnet_list`: Multiple subnet assignments (converted to `subnets: values`)
+
+These fields are automatically normalized during processing, so existing compose files continue to work without modification.
+
+=== Migration Path
+
+While legacy fields are supported, new compose files should use the `subnets` field for consistency:
+
+[source,yaml]
+----
+# Preferred (new format)
+hosts:
+  - name: web_server
+    subnets: [frontend]
+  - name: router
+    subnets: [frontend, backend]
+
+# Supported (legacy format)
+hosts:
+  - name: web_server
+    subnet: frontend
+  - name: router
+    subnet_list: [frontend, backend]
+----
+
+=== Shorthand Format Migration
+
+The schema also supports shorthand formats for roles and subnets that are automatically normalized:
+
+[source,yaml]
+----
+# Shorthand format (recommended for simple cases)
+roles:
+  - nginx
+  - monitoring
+subnets:
+  - frontend
+  - backend
+
+# Equivalent full format
+roles:
+  - name: nginx
+  - name: monitoring
+subnets:
+  - name: frontend
+  - name: backend
+----
+
+== Defaults Configuration
+
+The `defaults` section configures automatic value assignment for optional elements.
+This section is optional and provides fallback values when specific configurations are not provided.
+
+=== Structure
+
+[source,yaml]
+----
+defaults:
+  host_ip4_ranges: [...]
+  router_ip4_ranges: [...]
+  cidr4_ranges: [...]
+----
+
+=== Fields
+
+==== host_ip4_ranges (optional)
+
+IP address ranges used for automatic IP assignment to regular hosts (non-router hosts).
+
+[source,yaml]
+----
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+    - start: 10.0.1.100
+      end: 10.0.1.200
+----
+
+Each range consists of:
+
+* `start` (required): Starting IP address in the range
+* `end` (required): Ending IP address in the range
+
+Multiple ranges can be specified to provide larger address pools or separate address spaces.
+
+==== router_ip4_ranges (optional)
+
+IP address ranges used for automatic IP assignment to router hosts (hosts with `is_router: true`).
+
+[source,yaml]
+----
+defaults:
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+----
+
+Router hosts typically require different IP addressing schemes, often in gateway or infrastructure address ranges.
+
+==== cidr4_ranges (optional)
+
+CIDR block ranges used for automatic subnet assignment when subnets don't specify explicit CIDR values.
+
+[source,yaml]
+----
+defaults:
+  cidr4_ranges:
+    - start: 192.168.20.0/16
+      end: 192.168.80.0/16
+    - start: 10.0.0.0/8
+      end: 10.255.0.0/8
+----
+
+Each CIDR range consists of:
+
+* `start` (required): Starting CIDR block (e.g., "192.168.20.0/16")
+* `end` (required): Ending CIDR block (e.g., "192.168.80.0/16")
+
+The system automatically assigns non-overlapping CIDR blocks from these ranges to subnets without explicit CIDR configuration.
+
+=== Default Values
+
+When the `defaults` section is omitted, the system uses built-in default ranges:
+
+[source,yaml]
+----
+# Built-in defaults (used when defaults section is omitted)
+defaults:
+  host_ip4_ranges: []     # Empty - requires manual IP assignment
+  router_ip4_ranges: []   # Empty - requires manual IP assignment
+  cidr4_ranges: []        # Empty - requires explicit CIDR assignment
+----
+
+=== Usage Example
+
+[source,yaml]
+----
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.100.10
+      end: 192.168.100.200
+  router_ip4_ranges:
+    - start: 192.168.1.10
+      end: 192.168.1.20
+  cidr4_ranges:
+    - start: 10.10.0.0/16
+      end: 10.50.0.0/16
+
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    # Will receive IP from host_ip4_ranges (e.g., 192.168.100.10)
+    subnets: [frontend]
+
+  - name: gateway
+    flavor: small_flavor
+    image: router_image
+    is_router: true
+    # Will receive IP from router_ip4_ranges (e.g., 192.168.1.10)
+    subnets: [frontend, external]
+
+subnets:
+  - frontend  # Will receive CIDR from cidr4_ranges (e.g., 10.10.0.0/24)
+  - external  # Will receive CIDR from cidr4_ranges (e.g., 10.11.0.0/24)
+----
 
 == See Also
 
+* `examples/base-hospital-network.yaml` - Complete infrastructure example
 * https://linuxcontainers.org/incus/docs/main/[Incus Documentation]
 * https://linuxcontainers.org/incus/docs/main/rest-api/[Incus REST API]
-* https://docs.docker.com/compose/compose-file/[Docker Compose Specification]

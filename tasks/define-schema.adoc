@@ -1,0 +1,14 @@
+= Define Schema
+
+Examine ./examples/base-hospital-network.yaml (which is an example of an incus-compose file) and
+infer the ./src/schema.rs and ./book/schema.adoc from it.
+Some fields are optional, and some have default values,
+the process of loading an incus-compose file verifies the correctness of the input and populates all of the optional fields.
+There is an incus-lockfile (called by the same name as the incus-compose but with a lock suffix) involved
+which is roughly identical to the incus-compose but with all the optional fields made explicit.
+The order of preference in deriving the optional fields is:
+first, if they are explicit in the incus-compose file, use that;
+second, if they are explicit in the incus-lockfile, use that;
+finally, use an implicit-value function.
+It is likely, that an implicit-value function needs to maintain a hash of all used values so that it can generate unique values.
+The simplest implicit-value function simply returns a constant value.

@@ -20,6 +20,8 @@ include::introduction.adoc[]
 
 include::schema.adoc[]
 
+include::optional-elements.adoc[]
+
 include::development.adoc[]
 
 include::project-status.adoc[]

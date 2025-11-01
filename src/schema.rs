@@ -8,107 +8,386 @@ pub struct IncusCompose {
     #[serde(default = "default_version")]
     pub version: String,
 
-    /// Collection of containers/VMs to manage
+    /// Default configuration for optional elements
     #[serde(default)]
-    pub containers: HashMap<String, Container>,
+    pub defaults: Defaults,
 
-    /// Global networks configuration
-    #[serde(default)]
-    pub networks: HashMap<String, Network>,
+    /// Collection of hosts to manage
+    pub hosts: Vec<Host>,
 
-    /// Global storage pools configuration
-    #[serde(default)]
-    pub storage: HashMap<String, StoragePool>,
+    /// Network subnets configuration
+    pub subnets: Vec<Subnet>,
 
-    /// Global profiles to apply
+    /// Global flavors configuration (optional, can be defined externally)
     #[serde(default)]
-    pub profiles: HashMap<String, Profile>,
+    pub flavors: HashMap<String, Flavor>,
+
+    /// Global images configuration (optional, can be defined externally)
+    #[serde(default)]
+    pub images: HashMap<String, Image>,
+}
+
+/// Expanded lockfile structure with all optional fields made explicit
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IncusLockfile {
+    /// Version of the incus-compose schema
+    pub version: String,
+
+    /// Default configuration used during generation
+    pub defaults: Defaults,
+
+    /// Collection of hosts with all optional fields populated
+    pub hosts: Vec<ExpandedHost>,
+
+    /// Network subnets with all optional fields populated
+    pub subnets: Vec<ExpandedSubnet>,
+
+    /// Resolved flavor definitions
+    pub flavors: HashMap<String, Flavor>,
+
+    /// Resolved image definitions
+    pub images: HashMap<String, Image>,
+
+    /// Generated metadata
+    pub metadata: LockfileMetadata,
 }
 
 fn default_version() -> String {
     "1.0".to_string()
 }
 
-/// Container or VM definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Container {
-    /// Type of instance: container or virtual-machine
-    #[serde(default = "default_container_type")]
-    pub instance_type: InstanceType,
+/// Default configuration for optional elements
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Defaults {
+    /// IP address ranges for regular hosts
+    #[serde(default)]
+    pub host_ip4_ranges: Vec<IpRange>,
 
-    /// Base image to use
+    /// IP address ranges for router hosts
+    #[serde(default)]
+    pub router_ip4_ranges: Vec<IpRange>,
+
+    /// CIDR ranges for automatic subnet assignment
+    #[serde(default)]
+    pub cidr4_ranges: Vec<CidrRange>,
+}
+
+/// IP address range specification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IpRange {
+    /// Starting IP address
+    pub start: String,
+
+    /// Ending IP address
+    pub end: String,
+}
+
+/// CIDR range specification for subnet assignment
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CidrRange {
+    /// Starting CIDR block
+    pub start: String,
+
+    /// Ending CIDR block
+    pub end: String,
+}
+
+/// Host definition in incus-compose file
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Host {
+    /// Name of the host
+    pub name: String,
+
+    /// Flavor reference (defines resource allocation)
+    pub flavor: String,
+
+    /// Image reference
     pub image: String,
 
-    /// Image server (e.g., "images:", "ubuntu:", "ubuntu-daily:")
-    #[serde(default = "default_image_server")]
-    pub image_server: String,
+    /// Whether this host should have a floating IP
+    #[serde(default)]
+    pub floating_ip: bool,
 
-    /// Container/VM description
+    /// Whether this host is the master node
+    #[serde(default)]
+    pub master: bool,
+
+    /// Whether this host acts as a router
+    #[serde(default)]
+    pub is_router: bool,
+
+    /// Roles assigned to this host
+    #[serde(default)]
+    pub roles: Vec<Role>,
+
+    /// Subnet assignments (can be single or multiple)
+    #[serde(default)]
+    pub subnets: Vec<String>,
+
+    /// Backward compatibility: single subnet assignment
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subnet: Option<String>,
+
+    /// Backward compatibility: multiple subnet assignments
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subnet_list: Option<Vec<String>>,
+}
+
+impl Host {
+    /// Normalize subnet fields into the subnets field
+    pub fn normalize(&mut self) {
+        // If subnets is empty, populate it from subnet or subnet_list
+        if self.subnets.is_empty() {
+            if let Some(ref subnet) = self.subnet {
+                self.subnets.push(subnet.clone());
+            }
+            if let Some(ref subnet_list) = self.subnet_list {
+                self.subnets.extend(subnet_list.iter().cloned());
+            }
+        }
+
+        // Clear the backward compatibility fields
+        self.subnet = None;
+        self.subnet_list = None;
+    }
+}
+
+/// Expanded host definition in lockfile with all fields explicit
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpandedHost {
+    /// Name of the host
+    pub name: String,
+
+    /// Flavor reference
+    pub flavor: String,
+
+    /// Image reference
+    pub image: String,
+
+    /// Whether this host has a floating IP (always explicit)
+    pub floating_ip: bool,
+
+    /// Whether this host is the master node (always explicit)
+    pub master: bool,
+
+    /// Whether this host acts as a router (always explicit)
+    pub is_router: bool,
+
+    /// Roles assigned to this host (always present, may be empty)
+    pub roles: Vec<Role>,
+
+    /// Subnet assignments (always present, may be empty)
+    pub subnets: Vec<String>,
+
+    /// Generated unique identifier
+    pub id: String,
+
+    /// Generated MAC address
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mac_address: Option<String>,
+
+    /// Assigned IP addresses per subnet
+    pub ip_addresses: HashMap<String, String>,
+
+    /// Instance type (derived from flavor and configuration)
+    pub instance_type: InstanceType,
+
+    /// Resolved resource limits (from flavor)
+    pub resources: Resources,
+}
+
+/// Role definition
+/// Can be either a string (shorthand) or full object
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Role {
+    /// Shorthand string format (just the role name)
+    Name(String),
+    /// Full role configuration
+    Full(RoleConfig),
+}
+
+/// Full role configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RoleConfig {
+    /// Name of the role
+    pub name: String,
+
+    /// Optional values/parameters for the role
+    #[serde(default)]
+    pub values: Vec<String>,
+}
+
+impl Role {
+    /// Get the role name regardless of format
+    pub fn name(&self) -> &str {
+        match self {
+            Role::Name(name) => name,
+            Role::Full(config) => &config.name,
+        }
+    }
+
+    /// Get the role values
+    pub fn values(&self) -> &[String] {
+        match self {
+            Role::Name(_) => &[],
+            Role::Full(config) => &config.values,
+        }
+    }
+
+    /// Convert to full configuration format
+    pub fn to_full_config(self) -> RoleConfig {
+        match self {
+            Role::Name(name) => RoleConfig {
+                name,
+                values: vec![],
+            },
+            Role::Full(config) => config,
+        }
+    }
+}
+
+/// Subnet definition in incus-compose file
+/// Can be either a string (shorthand) or full object
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Subnet {
+    /// Shorthand string format (just the subnet name)
+    Name(String),
+    /// Full subnet configuration
+    Full(SubnetConfig),
+}
+
+/// Full subnet configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubnetConfig {
+    /// Name of the subnet
+    pub name: String,
+
+    /// CIDR notation for the subnet (optional, may be auto-assigned)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cidr: Option<String>,
+}
+
+impl Subnet {
+    /// Get the subnet name regardless of format
+    pub fn name(&self) -> &str {
+        match self {
+            Subnet::Name(name) => name,
+            Subnet::Full(config) => &config.name,
+        }
+    }
+
+    /// Get the CIDR if explicitly specified
+    pub fn cidr(&self) -> Option<&str> {
+        match self {
+            Subnet::Name(_) => None,
+            Subnet::Full(config) => config.cidr.as_deref(),
+        }
+    }
+
+    /// Convert to full configuration format
+    pub fn to_full_config(self) -> SubnetConfig {
+        match self {
+            Subnet::Name(name) => SubnetConfig { name, cidr: None },
+            Subnet::Full(config) => config,
+        }
+    }
+}
+
+/// Expanded subnet definition in lockfile
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpandedSubnet {
+    /// Name of the subnet
+    pub name: String,
+
+    /// CIDR notation (always explicit in lockfile)
+    pub cidr: String,
+
+    /// Generated unique identifier
+    pub id: String,
+
+    /// Gateway IP address
+    pub gateway: String,
+
+    /// Network type
+    #[serde(default = "default_network_type")]
+    pub network_type: NetworkType,
+
+    /// Network configuration
+    #[serde(default)]
+    pub config: HashMap<String, String>,
+}
+
+fn default_network_type() -> NetworkType {
+    NetworkType::Bridge
+}
+
+/// Flavor definition (resource allocation template)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Flavor {
+    /// Flavor name
+    pub name: String,
+
+    /// Description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    /// Container/VM configuration
-    #[serde(default)]
-    pub config: HashMap<String, String>,
+    /// CPU allocation
+    pub cpu: CpuSpec,
 
-    /// Device configuration
-    #[serde(default)]
-    pub devices: HashMap<String, Device>,
+    /// Memory allocation
+    pub memory: MemorySpec,
 
-    /// Network interfaces
-    #[serde(default)]
-    pub networks: Vec<String>,
-
-    /// Storage volumes to attach
-    #[serde(default)]
-    pub volumes: Vec<Volume>,
-
-    /// Profiles to apply
-    #[serde(default)]
-    pub profiles: Vec<String>,
-
-    /// CPU limits
+    /// Storage allocation
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cpu: Option<CpuLimits>,
+    pub storage: Option<StorageSpec>,
 
-    /// Memory limits
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory: Option<MemoryLimits>,
-
-    /// Environment variables
-    #[serde(default)]
-    pub environment: HashMap<String, String>,
-
-    /// Whether the instance should start automatically
-    #[serde(default = "default_true")]
-    pub autostart: bool,
-
-    /// Boot order priority
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub boot_priority: Option<u32>,
-
-    /// Dependencies - containers that should start before this one
-    #[serde(default)]
-    pub depends_on: Vec<String>,
-
-    /// Cloud-init configuration
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cloud_init: Option<CloudInit>,
+    /// Instance type for this flavor
+    #[serde(default = "default_instance_type")]
+    pub instance_type: InstanceType,
 }
 
-fn default_container_type() -> InstanceType {
+fn default_instance_type() -> InstanceType {
     InstanceType::Container
 }
 
-fn default_image_server() -> String {
+/// Image definition
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Image {
+    /// Image name/identifier
+    pub name: String,
+
+    /// Description
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Source (e.g., "images:", "ubuntu:", local path)
+    #[serde(default = "default_image_source")]
+    pub source: String,
+
+    /// Image fingerprint or tag
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<String>,
+
+    /// Architecture
+    #[serde(default = "default_architecture")]
+    pub architecture: String,
+
+    /// Operating system
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub os: Option<String>,
+}
+
+fn default_image_source() -> String {
     "images:".to_string()
 }
 
-fn default_true() -> bool {
-    true
+fn default_architecture() -> String {
+    "x86_64".to_string()
 }
 
-/// Instance type
+/// Instance type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum InstanceType {
@@ -116,14 +395,28 @@ pub enum InstanceType {
     VirtualMachine,
 }
 
-/// CPU resource limits
+/// Network type enumeration
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CpuLimits {
-    /// Number of CPU cores (e.g., "2" or "1-3")
+#[serde(rename_all = "lowercase")]
+pub enum NetworkType {
+    Bridge,
+    Macvlan,
+    Sriov,
+    Ovn,
+    Physical,
+}
+
+/// CPU specification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CpuSpec {
+    /// Number of CPU cores
+    pub cores: u32,
+
+    /// CPU limit (percentage)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<String>,
 
-    /// CPU allowance (percentage, e.g., "50%")
+    /// CPU allowance (percentage)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowance: Option<String>,
 
@@ -132,9 +425,9 @@ pub struct CpuLimits {
     pub priority: Option<u32>,
 }
 
-/// Memory resource limits
+/// Memory specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MemoryLimits {
+pub struct MemorySpec {
     /// Memory limit (e.g., "2GB", "512MB")
     pub limit: String,
 
@@ -147,146 +440,70 @@ pub struct MemoryLimits {
     pub swap_priority: Option<u32>,
 }
 
-/// Device configuration
+/// Storage specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum Device {
-    Disk {
-        source: String,
-        path: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        readonly: Option<bool>,
-    },
-    Nic {
-        network: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        hwaddr: Option<String>,
-    },
-    Proxy {
-        listen: String,
-        connect: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        bind: Option<String>,
-    },
-    Gpu {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        id: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        vendorid: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        productid: Option<String>,
-    },
-    Usb {
-        #[serde(skip_serializing_if = "Option::is_none")]
-        vendorid: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        productid: Option<String>,
-    },
-}
+pub struct StorageSpec {
+    /// Storage size
+    pub size: String,
 
-/// Volume mount configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Volume {
-    /// Source path or volume name
-    pub source: String,
-
-    /// Target path in container
-    pub target: String,
-
-    /// Storage pool to use
+    /// Storage pool
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pool: Option<String>,
 
-    /// Whether the volume is readonly
+    /// Storage type
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_type: Option<String>,
+}
+
+/// Resolved resource limits (combination of CPU, memory, storage)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Resources {
+    /// CPU specification
+    pub cpu: CpuSpec,
+
+    /// Memory specification
+    pub memory: MemorySpec,
+
+    /// Storage specification
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage: Option<StorageSpec>,
+}
+
+/// Lockfile metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LockfileMetadata {
+    /// Generation timestamp
+    pub generated_at: String,
+
+    /// Generator version
+    pub generator_version: String,
+
+    /// Source compose file hash
+    pub source_hash: String,
+
+    /// Used value tracker for uniqueness
     #[serde(default)]
-    pub readonly: bool,
+    pub used_values: UsedValues,
 }
 
-/// Network configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Network {
-    /// Network type (bridge, macvlan, sriov, ovn, physical)
-    #[serde(rename = "type")]
-    pub network_type: NetworkType,
-
-    /// Network configuration options
+/// Tracker for used values to ensure uniqueness
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UsedValues {
+    /// Used IP addresses
     #[serde(default)]
-    pub config: HashMap<String, String>,
+    pub ip_addresses: HashMap<String, Vec<String>>,
 
-    /// Network description
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-}
-
-/// Network types supported by Incus
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum NetworkType {
-    Bridge,
-    Macvlan,
-    Sriov,
-    Ovn,
-    Physical,
-}
-
-/// Storage pool configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StoragePool {
-    /// Pool driver (dir, btrfs, lvm, zfs, ceph)
-    pub driver: StorageDriver,
-
-    /// Pool configuration
+    /// Used MAC addresses
     #[serde(default)]
-    pub config: HashMap<String, String>,
+    pub mac_addresses: Vec<String>,
 
-    /// Pool description
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-}
-
-/// Storage drivers supported by Incus
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum StorageDriver {
-    Dir,
-    Btrfs,
-    Lvm,
-    Zfs,
-    Ceph,
-}
-
-/// Profile configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Profile {
-    /// Profile description
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-
-    /// Configuration options
+    /// Used host IDs
     #[serde(default)]
-    pub config: HashMap<String, String>,
+    pub host_ids: Vec<String>,
 
-    /// Devices in the profile
+    /// Used subnet IDs
     #[serde(default)]
-    pub devices: HashMap<String, Device>,
-}
-
-/// Cloud-init configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CloudInit {
-    /// User data (cloud-config)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_data: Option<String>,
-
-    /// Network config
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub network_config: Option<String>,
-
-    /// Vendor data
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub vendor_data: Option<String>,
+    pub subnet_ids: Vec<String>,
 }
 
 #[cfg(test)]
@@ -295,61 +512,165 @@ mod tests {
 
     #[test]
     fn test_serialize_basic_compose() {
-        let mut containers = HashMap::new();
-        containers.insert(
-            "web".to_string(),
-            Container {
-                instance_type: InstanceType::Container,
-                image: "ubuntu/22.04".to_string(),
-                image_server: "images:".to_string(),
-                description: Some("Web server container".to_string()),
-                config: HashMap::new(),
-                devices: HashMap::new(),
-                networks: vec!["default".to_string()],
-                volumes: vec![],
-                profiles: vec!["default".to_string()],
-                cpu: None,
-                memory: Some(MemoryLimits {
-                    limit: "1GB".to_string(),
-                    swap: None,
-                    swap_priority: None,
-                }),
-                environment: HashMap::new(),
-                autostart: true,
-                boot_priority: None,
-                depends_on: vec![],
-                cloud_init: None,
-            },
-        );
+        let hosts = vec![Host {
+            name: "web-server".to_string(),
+            flavor: "small_flavor".to_string(),
+            image: "base_image".to_string(),
+            floating_ip: false,
+            master: false,
+            is_router: false,
+            roles: vec![Role::Full(RoleConfig {
+                name: "web".to_string(),
+                values: vec![],
+            })],
+            subnets: vec!["frontend".to_string()],
+            subnet: None,
+            subnet_list: None,
+        }];
+
+        let subnets = vec![Subnet::Full(SubnetConfig {
+            name: "frontend".to_string(),
+            cidr: Some("10.0.1.0/24".to_string()),
+        })];
 
         let compose = IncusCompose {
             version: "1.0".to_string(),
-            containers,
-            networks: HashMap::new(),
-            storage: HashMap::new(),
-            profiles: HashMap::new(),
+            hosts,
+            subnets,
+            flavors: HashMap::new(),
+            images: HashMap::new(),
+            defaults: Defaults::default(),
         };
 
         let yaml = serde_yaml::to_string(&compose).unwrap();
         assert!(yaml.contains("version"));
-        assert!(yaml.contains("web"));
+        assert!(yaml.contains("web-server"));
+        assert!(yaml.contains("frontend"));
     }
 
     #[test]
-    fn test_deserialize_basic_compose() {
+    fn test_deserialize_hospital_example() {
         let yaml = r#"
-version: "1.0"
-containers:
-  web:
-    instance_type: container
-    image: "ubuntu/22.04"
-    image_server: "images:"
-    memory:
-      limit: "1GB"
+hosts:
+  - name: web_server
+    flavor: small_flavor
+    image: base_image
+    roles:
+      - web
+      - name: monitoring
+        values: ["prometheus"]
+    subnet: frontend
+
+subnets:
+  - name: frontend
+    cidr: 10.0.1.0/24
+  - backend
+"#;
+
+        let mut compose: IncusCompose = serde_yaml::from_str(yaml).unwrap();
+
+        // Normalize subnet fields
+        for host in &mut compose.hosts {
+            host.normalize();
+        }
+
+        assert_eq!(compose.version, "1.0"); // default value
+        assert_eq!(compose.hosts.len(), 1);
+        assert_eq!(compose.subnets.len(), 2);
+
+        let host = &compose.hosts[0];
+        assert_eq!(host.name, "web_server");
+        assert_eq!(host.roles.len(), 2);
+        assert_eq!(host.roles[0].name(), "web");
+        assert_eq!(host.roles[0].values(), &[] as &[String]);
+        assert_eq!(host.roles[1].name(), "monitoring");
+        assert_eq!(host.roles[1].values(), &["prometheus".to_string()]);
+        assert_eq!(host.subnets, vec!["frontend"]);
+
+        // Test subnet formats
+        assert_eq!(compose.subnets[0].name(), "frontend");
+        assert_eq!(compose.subnets[0].cidr(), Some("10.0.1.0/24"));
+        assert_eq!(compose.subnets[1].name(), "backend");
+        assert_eq!(compose.subnets[1].cidr(), None);
+    }
+
+    #[test]
+    fn test_router_with_multiple_subnets() {
+        let yaml = r#"
+hosts:
+  - name: core_router
+    flavor: medium_flavor
+    image: router_image
+    is_router: true
+    roles:
+      - router
+    subnet_list:
+      - frontend
+      - backend
+      - dmz
+
+subnets:
+  - frontend
+  - backend
+  - dmz
+"#;
+
+        let mut compose: IncusCompose = serde_yaml::from_str(yaml).unwrap();
+
+        // Normalize subnet fields
+        for host in &mut compose.hosts {
+            host.normalize();
+        }
+
+        let host = &compose.hosts[0];
+        assert!(host.is_router);
+        assert_eq!(host.subnets.len(), 3);
+        assert_eq!(host.subnets, vec!["frontend", "backend", "dmz"]);
+
+        // Test shorthand subnet format
+        assert_eq!(compose.subnets[0].name(), "frontend");
+        assert_eq!(compose.subnets[1].name(), "backend");
+        assert_eq!(compose.subnets[2].name(), "dmz");
+        for subnet in &compose.subnets {
+            assert_eq!(subnet.cidr(), None);
+        }
+    }
+
+    #[test]
+    fn test_defaults_configuration() {
+        let yaml = r#"
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+  cidr4_ranges:
+    - start: 192.168.20.0/16
+      end: 192.168.80.0/16
+
+hosts:
+  - name: test_host
+    flavor: small_flavor
+    image: base_image
+
+subnets:
+  - test_subnet
 "#;
 
         let compose: IncusCompose = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(compose.version, "1.0");
-        assert!(compose.containers.contains_key("web"));
+
+        assert_eq!(compose.defaults.host_ip4_ranges.len(), 1);
+        assert_eq!(compose.defaults.host_ip4_ranges[0].start, "192.168.10.100");
+        assert_eq!(compose.defaults.host_ip4_ranges[0].end, "192.168.10.200");
+
+        assert_eq!(compose.defaults.router_ip4_ranges.len(), 1);
+        assert_eq!(compose.defaults.router_ip4_ranges[0].start, "192.168.1.100");
+        assert_eq!(compose.defaults.router_ip4_ranges[0].end, "192.168.1.200");
+
+        assert_eq!(compose.defaults.cidr4_ranges.len(), 1);
+        assert_eq!(compose.defaults.cidr4_ranges[0].start, "192.168.20.0/16");
+        assert_eq!(compose.defaults.cidr4_ranges[0].end, "192.168.80.0/16");
     }
 }

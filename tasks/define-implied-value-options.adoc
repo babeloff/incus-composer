@@ -1,0 +1,59 @@
+= Optional Elements
+
+Optional elements are those that can be omitted from a configuration file without affecting the overall structure or functionality of the system.
+
+Each optional element must have an implied value function (or function object)
+which is used to provide a default value when the element is not present in the configuration file.
+
+
+Here are the optional elements:
+
+== `ip4addr`
+
+Selects from a list of predefined IP addresses (may be specified by ranges), keeps a record of assigned IP addresses
+It uses different ranges based on the node type.
+Specifically it uses a specific range for router hosts.
+Uses the rust `ipnet` crate to generate the IP addresses.
+
+```yaml
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+```
+== `cidr`
+
+`cidr` : selects from a list of predefined CIDR addresses for the subnets.
+Uses the rust `cidr` crate to generate the CIDR addresses.
+```yaml
+defaults:
+  cidr4_ranges:
+    - start: 192.168.10.0/16
+      end: 192.168.90.0/16
+```
+
+== `status`
+
+`status` : defaults to 'enabled'
+
+== `is_router`
+
+`is_router` : defaults to 'false'
+
+== `master`
+
+`master` : defaults to 'false'
+
+== `floating_ip`
+
+`master` : defaults to 'false'
+
+
+== `name`
+
+In some cases, it is possible to use a string value in place of an associative array.
+For example, when specifying subnets, if only the name is provided as a string, the optional elements may be omitted in the incus-compose file.
+However, they must be explicitly specified in an associative array in the incus-lockfile.

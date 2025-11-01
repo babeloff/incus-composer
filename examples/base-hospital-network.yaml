@@ -1,3 +1,14 @@
+version: 1.0
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+  cidr4_ranges:
+    - start: 192.168.10.0/16
+      end: 192.168.90.0/16
 hosts:
   - name: oob
     flavor: xlarge_flavor
@@ -10,110 +21,110 @@ hosts:
     image: base_image
     is_router: true
     roles:
-      - name: router
+      - router
   - name: external_neuralert_server01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: broker
-     - name: velociraptor
-    subnet: internet
+      - broker
+      - velociraptor
+    subnets: [internet]
   - name: external_vasowatch_server01
     flavor: small_flavor
     image: base_image
     roles:
-     - name: velociraptor
-    subnet: internet
+      - velociraptor
+    subnets: [internet]
   - name: external_sible_health_server01
     flavor: small_flavor
     image: base_image
     roles:
       - name: ssh
         values: ["op_server0"]
-      - name: velociraptor
-    subnet: internet
+      - velociraptor
+    subnets: [internet]
   - name: external_physician_terminal01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: internet
+      - velociraptor
+    subnets: [internet]
   - name: cardiac_router
     flavor: small_flavor
     image: base_image
     is_router: true
     roles:
-      - name: router
-    subnet_list:
+      - router
+    subnets:
       - cardiac
       - hospital
   - name: patient01_monitor01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient01_monitor02
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient02_monitor01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient02_monitor02
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient03_monitor01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient03_monitor02
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient04_monitor01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient04_monitor02
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient05_monitor01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: patient05_monitor02
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: cardiac
+      - velociraptor
+    subnets: [cardiac]
   - name: physician_router
     flavor: small_flavor
     image: base_image
     is_router: true
     roles:
-      - name: router
-    subnet_list:
+      - router
+    subnets:
       - hospital
       - physician
   - name: nurse01_workstation01
@@ -122,154 +133,154 @@ hosts:
     roles:
       - name: subscriber
         values: ["external_neuralert_server01"]
-      - name: velociraptor
-    subnet: physician
+      - velociraptor
+    subnets: [physician]
   - name: nurse01_workstation02
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: physician
+      - velociraptor
+    subnets: [physician]
   - name: nurse01_workstation03
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: physician
+      - velociraptor
+    subnets: [physician]
   - name: nurse01_tv01
     flavor: small_flavor
     image: base_image
     roles:
       - name: tv
         values: ["external_neuralert_server01"]
-      - name: velociraptor
-    subnet: physician
+      - velociraptor
+    subnets: [physician]
   - name: physician01_terminal01
     flavor: small_flavor
     image: base_image
     roles:
       - name: pixi_base
-      - name: velociraptor
-    subnet: physician
+      - velociraptor
+    subnets: [physician]
   - name: physician01_terminal02
     flavor: small_flavor
     image: base_image
     roles:
-      - name: pixi_base
-      - name: velociraptor
-    subnet: physician
+      - pixi_base
+      - velociraptor
+    subnets: [physician]
   - name: server_router
     flavor: small_flavor
     image: base_image
     is_router: true
     roles:
-      - name: router
-    subnet_list:
+      - router
+    subnets:
       - hospital
       - server
   - name: internal_neuralert_server01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: server
+      - velociraptor
+    subnets: [server]
   - name: internal_vasowatch_server01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: server
+      - velociraptor
+    subnets: [server]
   - name: sibel_health_server01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: server
+      - velociraptor
+    subnets: [server]
   - name: monitor_router
     flavor: small_flavor
     image: base_image
     is_router: true
     roles:
-      - name: router
-    subnet_list:
+      - router
+    subnets:
       - hospital
       - monitor
   - name: emr_server01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: monitor
+      - velociraptor
+    subnets: [monitor]
   - name: patient_monitor_server01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: monitor
+      - velociraptor
+    subnets: [monitor]
   - name: clinic_router
     flavor: small_flavor
     image: base_image
     is_router: true
     roles:
-      - name: router
-    subnet_list:
+      - router
+    subnets:
       - hospital
       - clinic
   - name: ecg_pulse_oximeter01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: clinic
+      - velociraptor
+    subnets: [clinic]
   - name: clinic_ipad01
     flavor: small_flavor
     image: base_image
     roles:
-      - name: velociraptor
-    subnet: clinic
+      - velociraptor
+    subnets: [clinic]
   - name: patient_bed01
     flavor: small_flavor
     image: base_image
     roles:
       - name: neuralert_device
         values: ["external_neuralert_server01"]
-      - name: patient_monitor
-      - name: velociraptor
-    subnet: clinic
+      - patient_monitor
+      - velociraptor
+    subnets: [clinic]
   - name: patient_bed02
     flavor: small_flavor
     image: base_image
     roles:
       - name: neuralert_device
         values: ["external_neuralert_server01"]
-      - name: patient_monitor
-      - name: velociraptor
-    subnet: clinic
+      - patient_monitor
+      - velociraptor
+    subnets: [clinic]
   - name: patient_bed03
     flavor: small_flavor
     image: base_image
     roles:
       - name: neuralert_device
         values: ["external_neuralert_server01"]
-      - name: patient_monitor
-      - name: velociraptor
-    subnet: clinic
+      - patient_monitor
+      - velociraptor
+    subnets: [clinic]
   - name: patient_bed04
     flavor: small_flavor
     image: base_image
     roles:
       - name: neuralert_device
         values: ["external_neuralert_server01"]
-      - name: patient_monitor
-      - name: velociraptor
-    subnet: clinic
+      - patient_monitor
+      - velociraptor
+    subnets: [clinic]
 subnets:
   - name: cardiac
     cidr: 10.10.10.0/24
-  - name: clinic
+  - clinic
   - name: hospital
     cidr: 10.10.30.0/24
-  - name: internet
-  - name: monitor
-  - name: physician
-  - name: server
+  - internet
+  - monitor
+  - physician
+  - server

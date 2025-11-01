@@ -1,0 +1,153 @@
+# Optional Elements Demonstration
+# This example shows how optional elements work in incus-composer configurations
+
+# This configuration demonstrates:
+# 1. Hosts with minimal configuration (using many defaults)
+# 2. Hosts with explicit optional element values
+# 3. Mixed subnet definitions (with and without explicit CIDR)
+# 4. Various combinations of optional host properties
+
+# Default IP ranges configuration (planned feature)
+defaults:
+  host_ip4_ranges:
+    - start: 192.168.10.100
+      end: 192.168.10.200
+  router_ip4_ranges:
+    - start: 192.168.1.100
+      end: 192.168.1.200
+  cidr4_ranges:
+    - start: 192.168.20.0/16
+      end: 192.168.80.0/16
+
+hosts:
+  # Minimal host configuration - relies heavily on optional element defaults
+  - name: simple_web_server
+    flavor: medium_flavor
+    image: base_image
+    # The following values will use defaults:
+    # - floating_ip: false
+    # - master: false
+    # - is_router: false
+    # - roles: [] (empty)
+    # - subnets: [] (empty - will not be assigned to any subnet)
+
+  # Host with explicit floating IP
+  - name: public_api_server
+    flavor: medium_flavor
+    image: base_image
+    floating_ip: true  # Explicitly requesting external access
+    subnets: [dmz]
+
+  # Master node configuration
+  - name: cluster_master
+    flavor: xlarge_flavor
+    image: base_image
+    master: true  # Designated as cluster master
+    roles:
+      - name: kubernetes_master
+      - name: etcd
+    subnets: [internal]
+
+  # Router host with multiple subnets
+  - name: core_router
+    flavor: small_flavor
+    image: router_image
+    is_router: true  # Uses router IP ranges
+    roles:
+      - name: router
+        values: ["ospf", "bgp"]
+    subnets:
+      - internal
+      - dmz
+      - management
+
+  # Host with legacy subnet specification (backward compatibility)
+  - name: legacy_database
+    flavor: large_flavor
+    image: database_image
+    subnet: internal  # Legacy single subnet format
+    roles:
+      - name: postgresql
+        values: ["primary", "backup_enabled"]
+
+  # Host with legacy subnet list (backward compatibility)
+  - name: legacy_monitoring
+    flavor: medium_flavor
+    image: monitoring_image
+    subnet_list:  # Legacy multiple subnet format
+      - internal
+      - management
+    roles:
+      - name: prometheus
+      - name: grafana
+        values: ["admin_user:monitor"]
+
+  # Complex host with explicit values for all optional elements
+  - name: complex_application_server
+    flavor: large_flavor
+    image: application_image
+    floating_ip: false    # Explicitly no external access
+    master: false         # Explicitly not a master
+    is_router: false      # Explicitly not a router
+    roles:
+      - name: application_server
+        values: ["java", "spring_boot"]
+      - name: monitoring
+        values: ["prometheus_node_exporter"]
+      - name: logging
+        values: ["filebeat", "logstash"]
+    subnets: [internal]
+
+  # Minimal router with just essential configuration
+  - name: edge_router
+    flavor: small_flavor
+    image: router_image
+    is_router: true  # Will get router IP range
+    subnets: [dmz, external]
+
+subnets:
+  # Subnet with explicit CIDR
+  - name: internal
+    cidr: 10.0.1.0/24
+
+  # Subnet with shorthand definition - CIDR will be auto-assigned
+  - dmz
+
+  # Another shorthand subnet
+  - management
+
+  # Explicit subnet with full configuration
+  - name: external
+    cidr: 203.0.113.0/24
+
+  # Mixed format demonstration
+  - name: backup
+    # No CIDR specified - will be auto-assigned from cidr4_ranges
+
+# Note: The following elements are optional in the schema:
+#
+# For hosts:
+# - floating_ip (default: false)
+# - master (default: false)
+# - is_router (default: false)
+# - roles (default: empty array)
+# - subnets (default: empty array)
+#
+# For subnets:
+# - cidr (auto-assigned if not specified)
+#
+# In the generated lockfile, all these values will be explicit:
+# - IP addresses will be assigned from appropriate ranges
+# - MAC addresses will be generated
+# - Unique IDs will be created
+# - All boolean fields will show explicit true/false values
+# - Empty arrays will be explicitly shown as []
+
+# Expected lockfile behavior:
+# 1. simple_web_server: Gets defaults for all optional fields, no subnet assignment
+# 2. public_api_server: Gets floating IP, assigned to auto-generated CIDR for 'dmz'
+# 3. cluster_master: Marked as master, gets host IP range allocation
+# 4. core_router: Gets router IP range, assigned to multiple subnets
+# 5. legacy_database: 'subnet' field normalized to 'subnets: [internal]'
+# 6. legacy_monitoring: 'subnet_list' normalized to 'subnets: [internal, management]'
+# 7. All subnets without CIDR get auto-assigned from cidr4_ranges
