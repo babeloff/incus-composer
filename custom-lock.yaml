@@ -1,0 +1,284 @@
+version: '1.0'
+defaults:
+  host_ip4_ranges:
+  - start: 192.168.10.100
+    end: 192.168.10.200
+  router_ip4_ranges:
+  - start: 192.168.1.100
+    end: 192.168.1.200
+  cidr4_ranges:
+  - start: 192.168.20.0/16
+    end: 192.168.80.0/16
+hosts:
+- name: simple_web_server
+  flavor: medium_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles: []
+  subnets: []
+  id: host_001
+  mac_address: 02:00:00:00:00:01
+  ip_addresses: {}
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: public_api_server
+  flavor: medium_flavor
+  image: base_image
+  floating_ip: true
+  master: false
+  is_router: false
+  roles: []
+  subnets:
+  - dmz
+  id: host_002
+  mac_address: 02:00:00:00:00:02
+  ip_addresses:
+    dmz: 192.168.11.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: cluster_master
+  flavor: xlarge_flavor
+  image: base_image
+  floating_ip: false
+  master: true
+  is_router: false
+  roles:
+  - name: kubernetes_master
+    values: []
+  - name: etcd
+    values: []
+  subnets:
+  - internal
+  id: host_003
+  mac_address: 02:00:00:00:00:03
+  ip_addresses:
+    internal: 10.0.1.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: core_router
+  flavor: small_flavor
+  image: router_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles:
+  - name: router
+    values:
+    - ospf
+    - bgp
+  subnets:
+  - internal
+  - dmz
+  - management
+  id: host_004
+  mac_address: 02:00:00:00:00:04
+  ip_addresses:
+    dmz: 192.168.11.2
+    management: 192.168.12.2
+    internal: 10.0.1.2
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: legacy_database
+  flavor: large_flavor
+  image: database_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: postgresql
+    values:
+    - primary
+    - backup_enabled
+  subnets:
+  - internal
+  id: host_005
+  mac_address: 02:00:00:00:00:05
+  ip_addresses:
+    internal: 10.0.1.11
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: legacy_monitoring
+  flavor: medium_flavor
+  image: monitoring_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: prometheus
+    values: []
+  - name: grafana
+    values:
+    - admin_user:monitor
+  subnets:
+  - internal
+  - management
+  id: host_006
+  mac_address: 02:00:00:00:00:06
+  ip_addresses:
+    internal: 10.0.1.12
+    management: 192.168.12.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: complex_application_server
+  flavor: large_flavor
+  image: application_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: application_server
+    values:
+    - java
+    - spring_boot
+  - name: monitoring
+    values:
+    - prometheus_node_exporter
+  - name: logging
+    values:
+    - filebeat
+    - logstash
+  subnets:
+  - internal
+  id: host_007
+  mac_address: 02:00:00:00:00:07
+  ip_addresses:
+    internal: 10.0.1.13
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: edge_router
+  flavor: small_flavor
+  image: router_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles: []
+  subnets:
+  - dmz
+  - external
+  id: host_008
+  mac_address: 02:00:00:00:00:08
+  ip_addresses:
+    dmz: 192.168.11.3
+    external: 203.0.113.2
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+subnets:
+- name: internal
+  cidr: 10.0.1.0/24
+  id: subnet_001
+  gateway: 10.0.1.1
+  network_type: bridge
+  config: {}
+- name: dmz
+  cidr: 192.168.11.0/24
+  id: subnet_002
+  gateway: 192.168.11.1
+  network_type: bridge
+  config: {}
+- name: management
+  cidr: 192.168.12.0/24
+  id: subnet_003
+  gateway: 192.168.12.1
+  network_type: bridge
+  config: {}
+- name: external
+  cidr: 203.0.113.0/24
+  id: subnet_004
+  gateway: 203.0.113.1
+  network_type: bridge
+  config: {}
+- name: backup
+  cidr: 192.168.14.0/24
+  id: subnet_005
+  gateway: 192.168.14.1
+  network_type: bridge
+  config: {}
+flavors: {}
+images: {}
+metadata:
+  generated_at: 2024-01-01T01:42:50Z
+  generator_version: 0.1.0
+  source_hash: sha256:abc123def456_13
+  used_values:
+    ip_addresses:
+      subnet_192_168_11:
+      - 192.168.11.10
+      - 192.168.11.2
+      - 192.168.11.3
+      subnet_203_0_113:
+      - 203.0.113.2
+      subnet_10_0_1:
+      - 10.0.1.10
+      - 10.0.1.2
+      - 10.0.1.11
+      - 10.0.1.12
+      - 10.0.1.13
+      subnet_192_168_12:
+      - 192.168.12.2
+      - 192.168.12.10
+    mac_addresses:
+    - 02:00:00:00:00:01
+    - 02:00:00:00:00:02
+    - 02:00:00:00:00:03
+    - 02:00:00:00:00:04
+    - 02:00:00:00:00:05
+    - 02:00:00:00:00:06
+    - 02:00:00:00:00:07
+    - 02:00:00:00:00:08
+    host_ids:
+    - host_001
+    - host_002
+    - host_003
+    - host_004
+    - host_005
+    - host_006
+    - host_007
+    - host_008
+    subnet_ids:
+    - subnet_001
+    - subnet_002
+    - subnet_003
+    - subnet_004
+    - subnet_005

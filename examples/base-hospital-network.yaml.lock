@@ -1,0 +1,1072 @@
+version: '1.0'
+defaults:
+  host_ip4_ranges:
+  - start: 192.168.10.100
+    end: 192.168.10.200
+  router_ip4_ranges:
+  - start: 192.168.1.100
+    end: 192.168.1.200
+  cidr4_ranges:
+  - start: 192.168.10.0/16
+    end: 192.168.90.0/16
+hosts:
+- name: oob
+  flavor: xlarge_flavor
+  image: base_image
+  floating_ip: true
+  master: true
+  is_router: false
+  roles: []
+  subnets: []
+  id: host_001
+  mac_address: 02:00:00:00:00:01
+  ip_addresses: {}
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: internet_firewall
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles:
+  - name: router
+    values: []
+  subnets: []
+  id: host_002
+  mac_address: 02:00:00:00:00:02
+  ip_addresses: {}
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: external_neuralert_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: broker
+    values: []
+  - name: velociraptor
+    values: []
+  subnets:
+  - internet
+  id: host_003
+  mac_address: 02:00:00:00:00:03
+  ip_addresses:
+    internet: 192.168.13.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: external_vasowatch_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - internet
+  id: host_004
+  mac_address: 02:00:00:00:00:04
+  ip_addresses:
+    internet: 192.168.13.11
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: external_sible_health_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: ssh
+    values:
+    - op_server0
+  - name: velociraptor
+    values: []
+  subnets:
+  - internet
+  id: host_005
+  mac_address: 02:00:00:00:00:05
+  ip_addresses:
+    internet: 192.168.13.12
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: external_physician_terminal01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - internet
+  id: host_006
+  mac_address: 02:00:00:00:00:06
+  ip_addresses:
+    internet: 192.168.13.13
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: cardiac_router
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles:
+  - name: router
+    values: []
+  subnets:
+  - cardiac
+  - hospital
+  id: host_007
+  mac_address: 02:00:00:00:00:07
+  ip_addresses:
+    hospital: 10.10.30.2
+    cardiac: 10.10.10.2
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient01_monitor01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_008
+  mac_address: 02:00:00:00:00:08
+  ip_addresses:
+    cardiac: 10.10.10.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient01_monitor02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_009
+  mac_address: 02:00:00:00:00:09
+  ip_addresses:
+    cardiac: 10.10.10.11
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient02_monitor01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_010
+  mac_address: 02:00:00:00:00:0a
+  ip_addresses:
+    cardiac: 10.10.10.12
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient02_monitor02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_011
+  mac_address: 02:00:00:00:00:0b
+  ip_addresses:
+    cardiac: 10.10.10.13
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient03_monitor01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_012
+  mac_address: 02:00:00:00:00:0c
+  ip_addresses:
+    cardiac: 10.10.10.14
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient03_monitor02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_013
+  mac_address: 02:00:00:00:00:0d
+  ip_addresses:
+    cardiac: 10.10.10.15
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient04_monitor01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_014
+  mac_address: 02:00:00:00:00:0e
+  ip_addresses:
+    cardiac: 10.10.10.16
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient04_monitor02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_015
+  mac_address: 02:00:00:00:00:0f
+  ip_addresses:
+    cardiac: 10.10.10.17
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient05_monitor01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_016
+  mac_address: 02:00:00:00:00:10
+  ip_addresses:
+    cardiac: 10.10.10.18
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient05_monitor02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - cardiac
+  id: host_017
+  mac_address: 02:00:00:00:00:11
+  ip_addresses:
+    cardiac: 10.10.10.19
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: physician_router
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles:
+  - name: router
+    values: []
+  subnets:
+  - hospital
+  - physician
+  id: host_018
+  mac_address: 02:00:00:00:00:12
+  ip_addresses:
+    hospital: 10.10.30.3
+    physician: 192.168.15.2
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: nurse01_workstation01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: subscriber
+    values:
+    - external_neuralert_server01
+  - name: velociraptor
+    values: []
+  subnets:
+  - physician
+  id: host_019
+  mac_address: 02:00:00:00:00:13
+  ip_addresses:
+    physician: 192.168.15.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: nurse01_workstation02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - physician
+  id: host_020
+  mac_address: 02:00:00:00:00:14
+  ip_addresses:
+    physician: 192.168.15.11
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: nurse01_workstation03
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - physician
+  id: host_021
+  mac_address: 02:00:00:00:00:15
+  ip_addresses:
+    physician: 192.168.15.12
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: nurse01_tv01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: tv
+    values:
+    - external_neuralert_server01
+  - name: velociraptor
+    values: []
+  subnets:
+  - physician
+  id: host_022
+  mac_address: 02:00:00:00:00:16
+  ip_addresses:
+    physician: 192.168.15.13
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: physician01_terminal01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: pixi_base
+    values: []
+  - name: velociraptor
+    values: []
+  subnets:
+  - physician
+  id: host_023
+  mac_address: 02:00:00:00:00:17
+  ip_addresses:
+    physician: 192.168.15.14
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: physician01_terminal02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: pixi_base
+    values: []
+  - name: velociraptor
+    values: []
+  subnets:
+  - physician
+  id: host_024
+  mac_address: 02:00:00:00:00:18
+  ip_addresses:
+    physician: 192.168.15.15
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: server_router
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles:
+  - name: router
+    values: []
+  subnets:
+  - hospital
+  - server
+  id: host_025
+  mac_address: 02:00:00:00:00:19
+  ip_addresses:
+    server: 192.168.16.2
+    hospital: 10.10.30.4
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: internal_neuralert_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - server
+  id: host_026
+  mac_address: 02:00:00:00:00:1a
+  ip_addresses:
+    server: 192.168.16.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: internal_vasowatch_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - server
+  id: host_027
+  mac_address: 02:00:00:00:00:1b
+  ip_addresses:
+    server: 192.168.16.11
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: sibel_health_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - server
+  id: host_028
+  mac_address: 02:00:00:00:00:1c
+  ip_addresses:
+    server: 192.168.16.12
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: monitor_router
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles:
+  - name: router
+    values: []
+  subnets:
+  - hospital
+  - monitor
+  id: host_029
+  mac_address: 02:00:00:00:00:1d
+  ip_addresses:
+    monitor: 192.168.14.2
+    hospital: 10.10.30.5
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: emr_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - monitor
+  id: host_030
+  mac_address: 02:00:00:00:00:1e
+  ip_addresses:
+    monitor: 192.168.14.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient_monitor_server01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - monitor
+  id: host_031
+  mac_address: 02:00:00:00:00:1f
+  ip_addresses:
+    monitor: 192.168.14.11
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: clinic_router
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: true
+  roles:
+  - name: router
+    values: []
+  subnets:
+  - hospital
+  - clinic
+  id: host_032
+  mac_address: 02:00:00:00:00:20
+  ip_addresses:
+    hospital: 10.10.30.6
+    clinic: 192.168.11.2
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: ecg_pulse_oximeter01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - clinic
+  id: host_033
+  mac_address: 02:00:00:00:00:21
+  ip_addresses:
+    clinic: 192.168.11.10
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: clinic_ipad01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: velociraptor
+    values: []
+  subnets:
+  - clinic
+  id: host_034
+  mac_address: 02:00:00:00:00:22
+  ip_addresses:
+    clinic: 192.168.11.11
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient_bed01
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: neuralert_device
+    values:
+    - external_neuralert_server01
+  - name: patient_monitor
+    values: []
+  - name: velociraptor
+    values: []
+  subnets:
+  - clinic
+  id: host_035
+  mac_address: 02:00:00:00:00:23
+  ip_addresses:
+    clinic: 192.168.11.12
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient_bed02
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: neuralert_device
+    values:
+    - external_neuralert_server01
+  - name: patient_monitor
+    values: []
+  - name: velociraptor
+    values: []
+  subnets:
+  - clinic
+  id: host_036
+  mac_address: 02:00:00:00:00:24
+  ip_addresses:
+    clinic: 192.168.11.13
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient_bed03
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: neuralert_device
+    values:
+    - external_neuralert_server01
+  - name: patient_monitor
+    values: []
+  - name: velociraptor
+    values: []
+  subnets:
+  - clinic
+  id: host_037
+  mac_address: 02:00:00:00:00:25
+  ip_addresses:
+    clinic: 192.168.11.14
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+- name: patient_bed04
+  flavor: small_flavor
+  image: base_image
+  floating_ip: false
+  master: false
+  is_router: false
+  roles:
+  - name: neuralert_device
+    values:
+    - external_neuralert_server01
+  - name: patient_monitor
+    values: []
+  - name: velociraptor
+    values: []
+  subnets:
+  - clinic
+  id: host_038
+  mac_address: 02:00:00:00:00:26
+  ip_addresses:
+    clinic: 192.168.11.15
+  instance_type: container
+  resources:
+    cpu:
+      cores: 2
+      limit: 100%
+    memory:
+      limit: 2GB
+subnets:
+- name: cardiac
+  cidr: 10.10.10.0/24
+  id: subnet_001
+  gateway: 10.10.10.1
+  network_type: bridge
+  config: {}
+- name: clinic
+  cidr: 192.168.11.0/24
+  id: subnet_002
+  gateway: 192.168.11.1
+  network_type: bridge
+  config: {}
+- name: hospital
+  cidr: 10.10.30.0/24
+  id: subnet_003
+  gateway: 10.10.30.1
+  network_type: bridge
+  config: {}
+- name: internet
+  cidr: 192.168.13.0/24
+  id: subnet_004
+  gateway: 192.168.13.1
+  network_type: bridge
+  config: {}
+- name: monitor
+  cidr: 192.168.14.0/24
+  id: subnet_005
+  gateway: 192.168.14.1
+  network_type: bridge
+  config: {}
+- name: physician
+  cidr: 192.168.15.0/24
+  id: subnet_006
+  gateway: 192.168.15.1
+  network_type: bridge
+  config: {}
+- name: server
+  cidr: 192.168.16.0/24
+  id: subnet_007
+  gateway: 192.168.16.1
+  network_type: bridge
+  config: {}
+flavors: {}
+images: {}
+metadata:
+  generated_at: 2024-01-01T02:39:03Z
+  generator_version: 0.1.0
+  source_hash: sha256:abc123def456_45
+  used_values:
+    ip_addresses:
+      subnet_192_168_16:
+      - 192.168.16.2
+      - 192.168.16.10
+      - 192.168.16.11
+      - 192.168.16.12
+      subnet_192_168_14:
+      - 192.168.14.2
+      - 192.168.14.10
+      - 192.168.14.11
+      subnet_192_168_11:
+      - 192.168.11.2
+      - 192.168.11.10
+      - 192.168.11.11
+      - 192.168.11.12
+      - 192.168.11.13
+      - 192.168.11.14
+      - 192.168.11.15
+      subnet_192_168_13:
+      - 192.168.13.10
+      - 192.168.13.11
+      - 192.168.13.12
+      - 192.168.13.13
+      subnet_10_10_10:
+      - 10.10.10.2
+      - 10.10.10.10
+      - 10.10.10.11
+      - 10.10.10.12
+      - 10.10.10.13
+      - 10.10.10.14
+      - 10.10.10.15
+      - 10.10.10.16
+      - 10.10.10.17
+      - 10.10.10.18
+      - 10.10.10.19
+      subnet_10_10_30:
+      - 10.10.30.2
+      - 10.10.30.3
+      - 10.10.30.4
+      - 10.10.30.5
+      - 10.10.30.6
+      subnet_192_168_15:
+      - 192.168.15.2
+      - 192.168.15.10
+      - 192.168.15.11
+      - 192.168.15.12
+      - 192.168.15.13
+      - 192.168.15.14
+      - 192.168.15.15
+    mac_addresses:
+    - 02:00:00:00:00:01
+    - 02:00:00:00:00:02
+    - 02:00:00:00:00:03
+    - 02:00:00:00:00:04
+    - 02:00:00:00:00:05
+    - 02:00:00:00:00:06
+    - 02:00:00:00:00:07
+    - 02:00:00:00:00:08
+    - 02:00:00:00:00:09
+    - 02:00:00:00:00:0a
+    - 02:00:00:00:00:0b
+    - 02:00:00:00:00:0c
+    - 02:00:00:00:00:0d
+    - 02:00:00:00:00:0e
+    - 02:00:00:00:00:0f
+    - 02:00:00:00:00:10
+    - 02:00:00:00:00:11
+    - 02:00:00:00:00:12
+    - 02:00:00:00:00:13
+    - 02:00:00:00:00:14
+    - 02:00:00:00:00:15
+    - 02:00:00:00:00:16
+    - 02:00:00:00:00:17
+    - 02:00:00:00:00:18
+    - 02:00:00:00:00:19
+    - 02:00:00:00:00:1a
+    - 02:00:00:00:00:1b
+    - 02:00:00:00:00:1c
+    - 02:00:00:00:00:1d
+    - 02:00:00:00:00:1e
+    - 02:00:00:00:00:1f
+    - 02:00:00:00:00:20
+    - 02:00:00:00:00:21
+    - 02:00:00:00:00:22
+    - 02:00:00:00:00:23
+    - 02:00:00:00:00:24
+    - 02:00:00:00:00:25
+    - 02:00:00:00:00:26
+    host_ids:
+    - host_001
+    - host_002
+    - host_003
+    - host_004
+    - host_005
+    - host_006
+    - host_007
+    - host_008
+    - host_009
+    - host_010
+    - host_011
+    - host_012
+    - host_013
+    - host_014
+    - host_015
+    - host_016
+    - host_017
+    - host_018
+    - host_019
+    - host_020
+    - host_021
+    - host_022
+    - host_023
+    - host_024
+    - host_025
+    - host_026
+    - host_027
+    - host_028
+    - host_029
+    - host_030
+    - host_031
+    - host_032
+    - host_033
+    - host_034
+    - host_035
+    - host_036
+    - host_037
+    - host_038
+    subnet_ids:
+    - subnet_001
+    - subnet_002
+    - subnet_003
+    - subnet_004
+    - subnet_005
+    - subnet_006
+    - subnet_007

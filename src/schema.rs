@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 /// Root structure for incus-compose.yaml
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -174,7 +176,7 @@ pub struct ExpandedHost {
     pub is_router: bool,
 
     /// Roles assigned to this host (always present, may be empty)
-    pub roles: Vec<Role>,
+    pub roles: Vec<RoleConfig>,
 
     /// Subnet assignments (always present, may be empty)
     pub subnets: Vec<String>,
@@ -506,6 +508,318 @@ pub struct UsedValues {
     pub subnet_ids: Vec<String>,
 }
 
+impl IncusCompose {
+    /// Load an incus-compose.yaml file from disk
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let content = fs::read_to_string(path)?;
+        let mut compose: IncusCompose = serde_yaml::from_str(&content)?;
+
+        // Normalize legacy subnet fields
+        for host in &mut compose.hosts {
+            host.normalize();
+        }
+
+        Ok(compose)
+    }
+
+    /// Generate a lockfile from this compose configuration
+    pub fn generate_lockfile(&self) -> IncusLockfile {
+        let mut used_values = UsedValues::default();
+        let mut expanded_hosts = Vec::new();
+        let mut expanded_subnets = Vec::new();
+
+        // Generate expanded subnets first (needed for IP allocation)
+        for (idx, subnet) in self.subnets.iter().enumerate() {
+            let subnet_id = format!("subnet_{:03}", idx + 1);
+            let subnet_name = subnet.name();
+
+            // Use explicit CIDR or auto-assign
+            let cidr = subnet
+                .cidr()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| self.auto_assign_cidr(&mut used_values));
+
+            // Calculate gateway (typically .1)
+            let gateway = self.calculate_gateway(&cidr);
+
+            expanded_subnets.push(ExpandedSubnet {
+                name: subnet_name.to_string(),
+                cidr: cidr.clone(),
+                id: subnet_id.clone(),
+                gateway,
+                network_type: default_network_type(),
+                config: HashMap::new(),
+            });
+
+            used_values.subnet_ids.push(subnet_id);
+        }
+
+        // Generate expanded hosts
+        for (idx, host) in self.hosts.iter().enumerate() {
+            let host_id = format!("host_{:03}", idx + 1);
+            let mac_address = self.generate_mac_address(&mut used_values);
+
+            // Assign IP addresses for each subnet
+            let mut ip_addresses = HashMap::new();
+            for subnet_name in &host.subnets {
+                if let Some(expanded_subnet) =
+                    expanded_subnets.iter().find(|s| &s.name == subnet_name)
+                {
+                    let ip = self.assign_ip_address(
+                        &expanded_subnet.cidr,
+                        host.is_router,
+                        &mut used_values,
+                    );
+                    ip_addresses.insert(subnet_name.clone(), ip);
+                }
+            }
+
+            // Resolve instance type and resources from flavor (simplified for now)
+            let instance_type = default_instance_type();
+            let resources = Resources {
+                cpu: CpuSpec {
+                    cores: 2, // Default values - should be looked up from flavor
+                    limit: Some("100%".to_string()),
+                    allowance: None,
+                    priority: None,
+                },
+                memory: MemorySpec {
+                    limit: "2GB".to_string(), // Default - should be from flavor
+                    swap: None,
+                    swap_priority: None,
+                },
+                storage: None,
+            };
+
+            expanded_hosts.push(ExpandedHost {
+                name: host.name.clone(),
+                flavor: host.flavor.clone(),
+                image: host.image.clone(),
+                floating_ip: host.floating_ip,
+                master: host.master,
+                is_router: host.is_router,
+                roles: host
+                    .roles
+                    .iter()
+                    .map(|r| r.clone().to_full_config())
+                    .collect(),
+                subnets: host.subnets.clone(),
+                id: host_id.clone(),
+                mac_address: Some(mac_address),
+                ip_addresses,
+                instance_type,
+                resources,
+            });
+
+            used_values.host_ids.push(host_id);
+        }
+
+        IncusLockfile {
+            version: self.version.clone(),
+            hosts: expanded_hosts,
+            subnets: expanded_subnets,
+            flavors: self.flavors.clone(),
+            images: self.images.clone(),
+            defaults: self.defaults.clone(),
+            metadata: LockfileMetadata {
+                generated_at: simple_timestamp(),
+                generator_version: "0.1.0".to_string(),
+                source_hash: self.calculate_hash(),
+                used_values,
+            },
+        }
+    }
+
+    /// Auto-assign a CIDR block from configured ranges
+    fn auto_assign_cidr(&self, used_values: &mut UsedValues) -> String {
+        // Simplified implementation - should use actual CIDR range logic
+        let base_cidr = "192.168.{}.0/24";
+        let subnet_num = used_values.subnet_ids.len() + 10; // Start from 192.168.10.0/24
+        base_cidr.replace("{}", &subnet_num.to_string())
+    }
+
+    /// Calculate gateway IP for a CIDR block
+    fn calculate_gateway(&self, cidr: &str) -> String {
+        // Simplified - typically .1 of the network
+        if let Some(network_part) = cidr.split('/').next() {
+            let parts: Vec<&str> = network_part.split('.').collect();
+            if parts.len() == 4 {
+                return format!("{}.{}.{}.1", parts[0], parts[1], parts[2]);
+            }
+        }
+        "192.168.1.1".to_string() // Fallback
+    }
+
+    /// Generate a unique MAC address
+    fn generate_mac_address(&self, used_values: &mut UsedValues) -> String {
+        let mut counter = used_values.mac_addresses.len() + 1;
+        loop {
+            let mac = format!(
+                "02:00:00:00:{:02x}:{:02x}",
+                (counter >> 8) & 0xff,
+                counter & 0xff
+            );
+            if !used_values.mac_addresses.contains(&mac) {
+                used_values.mac_addresses.push(mac.clone());
+                return mac;
+            }
+            counter += 1;
+        }
+    }
+
+    /// Assign IP address within a subnet
+    fn assign_ip_address(
+        &self,
+        cidr: &str,
+        is_router: bool,
+        used_values: &mut UsedValues,
+    ) -> String {
+        // Simplified implementation
+        let network_base = if let Some(network_part) = cidr.split('/').next() {
+            let parts: Vec<&str> = network_part.split('.').collect();
+            if parts.len() == 4 {
+                format!("{}.{}.{}", parts[0], parts[1], parts[2])
+            } else {
+                "192.168.1".to_string()
+            }
+        } else {
+            "192.168.1".to_string()
+        };
+
+        let subnet_name = format!("subnet_{}", network_base.replace(".", "_"));
+        let used_ips = used_values
+            .ip_addresses
+            .entry(subnet_name.clone())
+            .or_insert_with(Vec::new);
+
+        // Start from .10 for regular hosts, .2 for routers (after gateway .1)
+        let start_ip = if is_router { 2 } else { 10 };
+
+        for i in start_ip..255 {
+            let ip = format!("{}.{}", network_base, i);
+            if !used_ips.contains(&ip) {
+                used_ips.push(ip.clone());
+                return ip;
+            }
+        }
+
+        format!("{}.100", network_base) // Fallback
+    }
+
+    /// Calculate hash of the compose file for change detection
+    fn calculate_hash(&self) -> String {
+        // Simplified implementation - should use proper hashing
+        format!(
+            "sha256:abc123def456_{}",
+            self.hosts.len() + self.subnets.len()
+        )
+    }
+}
+
+impl IncusLockfile {
+    /// Save lockfile to disk
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = serde_yaml::to_string(self)?;
+        fs::write(path, yaml)?;
+        Ok(())
+    }
+
+    /// Load lockfile from disk
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let content = fs::read_to_string(path)?;
+        let lockfile: IncusLockfile = serde_yaml::from_str(&content)?;
+        Ok(lockfile)
+    }
+
+    /// Generate incus commands for dry-run
+    pub fn generate_incus_commands(&self) -> Vec<String> {
+        let mut commands = Vec::new();
+
+        // Create networks first
+        for subnet in &self.subnets {
+            commands.push(format!(
+                "incus network create {} --type=bridge",
+                subnet.name
+            ));
+            commands.push(format!(
+                "incus network set {} ipv4.address={}",
+                subnet.name, subnet.gateway
+            ));
+            commands.push(format!("incus network set {} ipv4.dhcp=false", subnet.name));
+        }
+
+        // Create instances
+        for host in &self.hosts {
+            let instance_type = match host.instance_type {
+                InstanceType::Container => "container",
+                InstanceType::VirtualMachine => "virtual-machine",
+            };
+
+            commands.push(format!(
+                "incus create {} {} --type={}",
+                host.image, host.name, instance_type
+            ));
+
+            // Set resource limits
+            commands.push(format!(
+                "incus config set {} limits.cpu={}",
+                host.name, host.resources.cpu.cores
+            ));
+            commands.push(format!(
+                "incus config set {} limits.memory={}",
+                host.name, host.resources.memory.limit
+            ));
+
+            // Set MAC address
+            if let Some(ref mac) = host.mac_address {
+                commands.push(format!(
+                    "incus config device add {} eth0 nic network={} hwaddr={}",
+                    host.name,
+                    host.subnets.get(0).unwrap_or(&"bridge".to_string()),
+                    mac
+                ));
+            }
+
+            // Assign to networks and set IP addresses
+            for (i, subnet_name) in host.subnets.iter().enumerate() {
+                let device_name = if i == 0 {
+                    "eth0".to_string()
+                } else {
+                    format!("eth{}", i)
+                };
+
+                if i > 0 {
+                    // eth0 already added above
+                    commands.push(format!(
+                        "incus config device add {} {} nic network={}",
+                        host.name, device_name, subnet_name
+                    ));
+                }
+
+                if let Some(ip) = host.ip_addresses.get(subnet_name) {
+                    commands.push(format!(
+                        "incus config device set {} {} ipv4.address={}",
+                        host.name, device_name, ip
+                    ));
+                }
+            }
+
+            // Configure roles (simplified - would need actual role implementation)
+            for role in &host.roles {
+                commands.push(format!(
+                    "# Apply role '{}' to {} with values: {:?}",
+                    role.name, host.name, role.values
+                ));
+            }
+
+            // Start the instance
+            commands.push(format!("incus start {}", host.name));
+        }
+
+        commands
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -672,5 +986,92 @@ subnets:
         assert_eq!(compose.defaults.cidr4_ranges.len(), 1);
         assert_eq!(compose.defaults.cidr4_ranges[0].start, "192.168.20.0/16");
         assert_eq!(compose.defaults.cidr4_ranges[0].end, "192.168.80.0/16");
+    }
+
+    #[test]
+    fn test_lockfile_generation() {
+        let yaml = r#"
+hosts:
+  - name: test_host
+    flavor: small_flavor
+    image: base_image
+    subnets: [test_subnet]
+
+subnets:
+  - name: test_subnet
+    cidr: 192.168.100.0/24
+"#;
+
+        let compose: IncusCompose = serde_yaml::from_str(yaml).unwrap();
+        let lockfile = compose.generate_lockfile();
+
+        assert_eq!(lockfile.hosts.len(), 1);
+        assert_eq!(lockfile.subnets.len(), 1);
+
+        let host = &lockfile.hosts[0];
+        assert_eq!(host.name, "test_host");
+        assert_eq!(host.id, "host_001");
+        assert!(host.mac_address.is_some());
+        assert_eq!(host.ip_addresses.len(), 1);
+
+        let subnet = &lockfile.subnets[0];
+        assert_eq!(subnet.name, "test_subnet");
+        assert_eq!(subnet.cidr, "192.168.100.0/24");
+        assert_eq!(subnet.gateway, "192.168.100.1");
+    }
+
+    #[test]
+    fn test_incus_commands_generation() {
+        let yaml = r#"
+hosts:
+  - name: web_server
+    flavor: medium_flavor
+    image: base_image
+    subnets: [frontend]
+
+subnets:
+  - name: frontend
+    cidr: 10.0.1.0/24
+"#;
+
+        let compose: IncusCompose = serde_yaml::from_str(yaml).unwrap();
+        let lockfile = compose.generate_lockfile();
+        let commands = lockfile.generate_incus_commands();
+
+        assert!(!commands.is_empty());
+
+        // Check that network creation commands are present
+        assert!(commands
+            .iter()
+            .any(|cmd| cmd.contains("incus network create frontend")));
+
+        // Check that instance creation commands are present
+        assert!(commands
+            .iter()
+            .any(|cmd| cmd.contains("incus create base_image web_server")));
+
+        // Check that start command is present
+        assert!(commands
+            .iter()
+            .any(|cmd| cmd.contains("incus start web_server")));
+    }
+}
+
+// Add chrono dependency for timestamp generation
+use std::time::{SystemTime, UNIX_EPOCH};
+
+// Simple timestamp implementation since we don't want to add chrono dependency yet
+fn simple_timestamp() -> String {
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => {
+            let secs = duration.as_secs();
+            format!(
+                "2024-01-01T{:02}:{:02}:{:02}Z",
+                (secs / 3600) % 24,
+                (secs / 60) % 60,
+                secs % 60
+            )
+        }
+        Err(_) => "2024-01-01T00:00:00Z".to_string(),
     }
 }
